@@ -67,6 +67,35 @@ def _write_synthetic_dataset(data_dir: Path, n_days: int = 90) -> None:
         }
     ).to_csv(data_dir / "USC00058022.csv", index=False)
 
+    _write_synthetic_sonde(data_dir, dates, rng)
+
+
+def _write_synthetic_sonde(data_dir: Path, dates: pd.DatetimeIndex, rng: np.random.Generator) -> None:
+    """One cast per day, five depths each, surface warmer than bottom --
+    enough for cast_summary/daily_surface_features and a storm before/after
+    comparison anywhere in the date range."""
+    depths = [1.0, 5.0, 10.0, 20.0, 40.0]
+    rows = []
+    for day in dates:
+        surface_temp = rng.uniform(10, 20)
+        for depth in depths:
+            rows.append(
+                {
+                    "Time stamp": day + pd.Timedelta(hours=12, minutes=depth),
+                    "Temp C": surface_temp - depth * 0.15,
+                    "Conductivity ": rng.uniform(200, 300),
+                    "Vertical Position ": depth,
+                    "pH": rng.uniform(7.8, 8.5),
+                    "ORP mV": rng.uniform(80, 120),
+                    "Turbidity NTU": rng.uniform(0.5, 5),
+                    "Chl ug/L": rng.uniform(0.2, 2),
+                    "Phycocyanin ": rng.uniform(0.2, 2),
+                    "ODO & sat": rng.uniform(70, 95),
+                    "ODO mg/L": rng.uniform(7, 10),
+                }
+            )
+    pd.DataFrame(rows).to_excel(data_dir / "Strontia 0407_0819.xlsx", index=False)
+
 
 @pytest.fixture
 def synthetic_data_dir(tmp_path: Path) -> Path:
@@ -93,6 +122,9 @@ def test_analyze_parameters_writes_summary(
     assert "Empirical transit-time lag scan" in text
     assert "Model family comparison" in text
     assert "Lag-day grid search" in text
+    assert "lake turnover" in text
+    assert "closer predictor" in text
+    assert "depth profile" in text
 
     json_path = results_dir / "predictions.json"
     assert json_path.exists()

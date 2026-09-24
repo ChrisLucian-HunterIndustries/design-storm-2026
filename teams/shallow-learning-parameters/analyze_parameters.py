@@ -33,6 +33,7 @@ from models import (
     lag_correlation_scan,
     predict_full_series,
 )
+from sonde_loader import cast_summary, daily_surface_features, load_sonde_readings
 
 DATA_DIR = Path(__file__).resolve().parents[2] / "data"
 RESULTS_DIR = Path(__file__).resolve().parent / "results"
@@ -175,6 +176,95 @@ def _lag_day_grid_search_table(data_dir: Path) -> list[str]:
     return lines
 
 
+def _stratification_table(casts: pd.DataFrame) -> list[str]:
+    """Scenario 3's "lake turnover" bullet: surface-minus-bottom temperature
+    per cast is a standard stratification indicator. Report the overall
+    range plus the most-mixed and most-stratified casts by date, so "lake
+    turnover" names an actual observed date rather than a generic claim."""
+    most_mixed = casts.loc[casts["temp_diff_c"].idxmin()]
+    most_stratified = casts.loc[casts["temp_diff_c"].idxmax()]
+    lines = [
+        f"{len(casts)} casts, {casts['date'].min().date()} to {casts['date'].max().date()}.",
+        "",
+        f"- Surface-bottom temperature difference: min {_fmt(casts['temp_diff_c'].min())}\u00b0C, "
+        f"max {_fmt(casts['temp_diff_c'].max())}\u00b0C, mean {_fmt(casts['temp_diff_c'].mean())}\u00b0C.",
+        f"- Most mixed cast (smallest difference, closest to a turnover state): "
+        f"{most_mixed['date'].date()}, {_fmt(most_mixed['temp_diff_c'])}\u00b0C "
+        f"(surface {_fmt(most_mixed['surface_temp_c'])}\u00b0C, bottom {_fmt(most_mixed['bottom_temp_c'])}\u00b0C).",
+        f"- Most stratified cast: {most_stratified['date'].date()}, "
+        f"{_fmt(most_stratified['temp_diff_c'])}\u00b0C "
+        f"(surface {_fmt(most_stratified['surface_temp_c'])}\u00b0C, bottom {_fmt(most_stratified['bottom_temp_c'])}\u00b0C).",
+    ]
+    return lines
+
+
+def _sonde_predictor_table(data_dir: Path, sonde_readings: pd.DataFrame, daily_sonde: pd.DataFrame) -> list[str]:
+    """Scenario 1's second bullet: does the sonde, sitting closer to the
+    plant, predict better (or with shorter lag) than the upstream USGS gage?
+    Scored on the sonde's *own* coverage window for both sensors -- the
+    sonde covers only that window, so comparing it against the gage's full
+    multi-year record would not be a fair test."""
+    start = sonde_readings["timestamp"].min().normalize()
+    end = sonde_readings["timestamp"].max().normalize()
+    gage = load_usgs_gage(data_dir).loc[start:end]
+    telemetry = load_dwr_telemetry(data_dir).loc[start:end]
+    target = load_target(data_dir).loc[start:end]
+
+    lines = [
+        f"Same {start.date()} to {end.date()} window for both sensors ({len(target)} lab results).\n",
+        "| sensor | predictor | target | best lag (days) | correlation at best lag |",
+        "|---|---|---|---:|---:|",
+    ]
+    pairs = [
+        ("sonde (Strontia)", daily_sonde["Turbidity_NTU"], "TOC_mg_L", target["TOC_mg_L"]),
+        ("USGS gage (upstream)", gage["Turbidity_Median"], "TOC_mg_L", target["TOC_mg_L"]),
+        ("sonde (Strontia)", daily_sonde["Conductivity"], "Alk_mg_L", target["Alk_mg_L"]),
+        ("USGS gage (upstream)", gage["Specific_Cond_Mean"], "Alk_mg_L", target["Alk_mg_L"]),
+    ]
+    for sensor, predictor, target_name, target_series in pairs:
+        scan = lag_correlation_scan(predictor, target_series, max_lag_days=10)
+        lag = best_lag(scan)
+        lines.append(
+            f"| {sensor} | {predictor.name} | {target_name} | {lag} | {_fmt(scan[lag])} |"
+        )
+    return lines
+
+
+def _select_storm_date_in_window(data_dir: Path, sonde_readings: pd.DataFrame) -> pd.Timestamp:
+    """The peak turbidity x flow ('loading') day within the sonde's own
+    coverage window -- same event-selection idea as
+    visualize.select_storm_event, scoped to whatever period the sonde
+    actually covers (so this adapts to synthetic test data too, not just
+    the real 2026 deployment)."""
+    start = sonde_readings["timestamp"].min().normalize()
+    end = sonde_readings["timestamp"].max().normalize()
+    gage = load_usgs_gage(data_dir).loc[start:end]
+    telemetry = load_dwr_telemetry(data_dir).loc[start:end]
+    loading = (gage["Turbidity_Median"] * telemetry["Flow_CFS"]).dropna()
+    return loading.idxmax()
+
+
+def _storm_profile_table(casts: pd.DataFrame, storm_date: pd.Timestamp) -> list[str]:
+    """Scenario 2's depth-profile bullet: compare the nearest cast before
+    and after a real storm (peak flow AND peak turbidity day within the
+    sonde's window) to see whether the storm's signal reaches every depth or
+    only the surface."""
+    before = casts[casts["date"] < storm_date].iloc[-1]
+    after = casts[casts["date"] > storm_date].iloc[0]
+
+    lines = [
+        f"Storm date (peak flow and turbidity in the sonde's window): {storm_date.date()}.\n",
+        "| cast | surface turbidity (NTU) | surface conductivity | bottom temp (C) | surface temp (C) |",
+        "|---|---:|---:|---:|---:|",
+    ]
+    for label, cast in [("before: " + str(before["start"]), before), ("after: " + str(after["start"]), after)]:
+        lines.append(
+            f"| {label} | {_fmt(cast['surface_turbidity_ntu'])} | {_fmt(cast['surface_conductivity'])} | "
+            f"{_fmt(cast['bottom_temp_c'])} | {_fmt(cast['surface_temp_c'])} |"
+        )
+    return lines
+
+
 def _series_to_points(series: pd.Series) -> list[list]:
     """A pandas Series (DatetimeIndex -> float) as [["YYYY-MM-DD", value], ...]
     JSON, for viewer.html's Chart.js time-scale line charts."""
@@ -313,6 +403,27 @@ def main() -> None:
         "(guide.md section 14); compare those rows below against the rest of the grid.\n"
     )
     lines += _lag_day_grid_search_table(DATA_DIR)
+
+    lines.append(
+        "\n## Strontia profiling sonde: stratification (Scenario 3: \"lake turnover\")\n"
+    )
+    sonde_readings = load_sonde_readings(DATA_DIR)
+    sonde_casts = cast_summary(sonde_readings)
+    lines += _stratification_table(sonde_casts)
+
+    lines.append(
+        "\n## Strontia profiling sonde as a closer predictor (Scenario 1: \"introduce real-time "
+        "Strontia profiling sonde data\")\n"
+    )
+    sonde_daily = daily_surface_features(sonde_readings)
+    lines += _sonde_predictor_table(DATA_DIR, sonde_readings, sonde_daily)
+
+    lines.append(
+        "\n## Storm impact on the reservoir's depth profile (Scenario 2: \"how do water quality "
+        "parameters change and distribute by depth\")\n"
+    )
+    storm_date = _select_storm_date_in_window(DATA_DIR, sonde_readings)
+    lines += _storm_profile_table(sonde_casts, storm_date)
 
     output_path = RESULTS_DIR / "parameter_summary.md"
     output_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
