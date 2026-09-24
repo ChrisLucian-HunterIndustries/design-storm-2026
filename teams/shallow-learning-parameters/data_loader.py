@@ -145,3 +145,28 @@ def peak_loading_date(data_dir: Path, start, end) -> pd.Timestamp:
     telemetry = load_dwr_telemetry(data_dir).loc[start:end]
     loading = (gage["Turbidity_Median"] * telemetry["Flow_CFS"]).dropna()
     return loading.idxmax()
+
+
+def build_flow_forecast_dataset(data_dir: Path, lead_days: int = 3) -> pd.DataFrame:
+    """Predict streamflow `lead_days` ahead from today's snowpack, weather,
+    and current flow -- parameters.md's first "what this folder adds" idea,
+    documented since this catalog's first version but never built until now.
+
+    Unlike `build_dataset` (which shifts predictors *forward* so a row
+    holds what was known before a later lab result), this shifts the FLOW
+    target *backward*: a row dated "today" holds today's conditions as
+    features and the actual flow `lead_days` later as the target, which is
+    what a forecast needs."""
+    telemetry = load_dwr_telemetry(data_dir)
+    snow = load_snowpack(data_dir)
+    weather = load_weather(data_dir)
+
+    features = pd.DataFrame(index=telemetry.index)
+    features["Flow_CFS"] = telemetry["Flow_CFS"]
+    features["roll_flow_7"] = telemetry["Flow_CFS"].rolling(7).mean()
+    features = features.join(snow[["SWE"]])
+    features["roll_swe_7"] = snow["SWE"].rolling(7).mean()
+    features = features.join(weather[["TMAX", "TMIN", "PRCP"]])
+
+    target = telemetry["Flow_CFS"].shift(-lead_days, freq="D").rename("Flow_CFS_future")
+    return features.join(target, how="left")

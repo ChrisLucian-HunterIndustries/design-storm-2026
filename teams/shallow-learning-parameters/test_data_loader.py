@@ -14,6 +14,7 @@ import pytest
 
 from data_loader import (
     build_dataset,
+    build_flow_forecast_dataset,
     engineer_predictor_features,
     feature_columns,
     load_michigan_creek,
@@ -182,6 +183,17 @@ def test_feature_columns_excludes_targets(dataset_dir: Path) -> None:
     assert "TOC_mg_L" not in columns
     assert "Alk_mg_L" not in columns
     assert "turb_flow" in columns
+
+
+def test_build_flow_forecast_dataset_shifts_target_backward(dataset_dir: Path) -> None:
+    """A row dated Jan 1 should hold Jan 1's own flow as a feature, and
+    Jan 3's actual flow as the target, when lead_days=2."""
+    forecast = build_flow_forecast_dataset(dataset_dir, lead_days=2)
+
+    assert forecast.loc["2024-01-01", "Flow_CFS"] == pytest.approx(100.0)
+    assert forecast.loc["2024-01-01", "Flow_CFS_future"] == pytest.approx(120.0)
+    # the last `lead_days` rows have no future flow to predict yet
+    assert np.isnan(forecast.loc["2024-01-10", "Flow_CFS_future"])
 
 
 def test_load_michigan_creek(tmp_path: Path) -> None:
