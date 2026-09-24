@@ -75,8 +75,10 @@ models, so this pipeline scales first):
 | TOC_mg_L | Linear (turb_flow only) | 0.505 |
 | TOC_mg_L | Random forest | 0.334 |
 | TOC_mg_L | SVR (RBF kernel) | 0.502 |
+| TOC_mg_L | Gradient boosting | 0.111 |
 | Alk_mg_L | Random forest | 0.234 |
 | Alk_mg_L | SVR (RBF kernel) | 0.423 |
+| Alk_mg_L | Gradient boosting | 0.327 |
 
 The deck's hunch was right on this split: **SVR beats the random forest for
 both targets**, and very nearly matches the single-feature linear model for
@@ -88,6 +90,22 @@ or a split/hyperparameter artifact (`C=10, epsilon=0.1` were not tuned), is
 an open question this catalog didn't chase further — a `GridSearchCV` over
 SVR's `C`/`epsilon`/`gamma` is a natural next step and, like the deck says,
 "a small, well-isolated extension of the same module."
+
+**Gradient boosting** (`models.fit_gradient_boosting_importance`, an
+untuned `GradientBoostingRegressor`) is the model family `guide.md`'s own
+comparison actually won with — Jake's CatBoost beat his random forest for
+both targets (TOC 0.74 vs. 0.66, Alk 0.68 vs. 0.61). This catalog's plain,
+untuned version does **not** repeat that win: it's the *worst* model tried
+for TOC (0.111, well below even the random forest) and only a partial win
+for alkalinity (0.327, beating the random forest's 0.234 but still trailing
+SVR's 0.423). The honest read is not "boosting doesn't work here" — Jake's
+CatBoost result says it can — but that this catalog's untuned, single-split
+comparison isn't set up to reproduce that win. Jake's pipeline adds sample
+weighting (days above 3 mg/L TOC count 1.5x) and a `GridSearchCV` pass
+(`guide.md` section 9) that this comparison deliberately skipped for
+simplicity; boosted trees are known to be more hyperparameter-sensitive
+than random forests, and this result is consistent with that, not with
+boosting being a worse family in general.
 
 **Lag-day grid search** (`build_dataset` rebuilt at each candidate lag, same
 random forest refit each time):
@@ -118,6 +136,25 @@ useful read: alkalinity's R² is consistently positive and closely clustered
 Jake's choice of 4. TOC's curve never dips negative anywhere in the grid,
 which is a mildly reassuring sign that the turbidity/flow signal it depends
 on is more robust to the exact lag than alkalinity's conductance signal is.
+
+**The alkalinity-below-60 classifier** (guide.md section 11) gets the same
+treatment: random forest vs. a `LogisticRegression` baseline (imported in
+`models.py` from the start of this catalog but never actually used until
+now):
+
+![Random forest vs. logistic regression](../figures/17_classifier_comparison.png)
+
+| model | ROC-AUC |
+|---|---:|
+| Random forest classifier | 0.840 |
+| Logistic regression (scaled features) | 0.844 |
+
+Essentially tied, with logistic regression very slightly ahead — a linear
+model on 8 standardized features does just as well as a 300-tree forest at
+this specific yes/no question, which is a useful data point in itself: it
+suggests the below-60 boundary is close to linearly separable in this
+feature space, not a case where the forest's ability to model nonlinear
+interactions is buying anything.
 
 ## A web viewer for "projected TOC and/or alkalinity"
 

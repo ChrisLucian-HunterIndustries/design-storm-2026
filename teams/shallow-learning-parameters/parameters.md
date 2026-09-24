@@ -18,7 +18,8 @@ everything below.
 | `FoothillsInfluent.csv` | `TOC_mg_L`, `Alk_mg_L` | **Primary output.** Denver Water's own target (Scenario 1). Also usable as an *input* to a downstream model, e.g. today's alkalinity plus upstream readings predicting tomorrow's. |
 | `USGS_South_Platte.csv` | `Turbidity_Median`, `Specific_Cond_Mean`, `pH_Median`, `Temp_C_Mean`, `Dissolved_Oxygen_Mean` (+ Max/Min variants) | **Input**, always. Cheap, 15-minute sensor readings — the whole "soft sensor" premise (guide.md section 3) is predicting the lab values from these. `Turbidity_Median` and `Specific_Cond_Mean` are also plausible **outputs** in their own right: they're the fields most likely to go bad or unread first if a sensor fails, so "predict this gage's own reading from the others" is a sensible data-QA model. |
 | `SouthPlatteFlow.csv`, `SouthPlatteTelemetry.csv` | `Flow_CFS`, `GageHeight_ft` | **Input** for both targets (loading term, see `turb_flow` below). Also a legitimate **output**: forecasting flow itself a few days out from snowpack + temperature is a snowmelt-runoff model, useful independent of TOC/alkalinity (Scenario 3). The two files overlap (both carry `Flow_CFS`); this folder only reads `SouthPlatteTelemetry.csv`, which also has gage height. `Precip` in the telemetry file is a dirty running total (guide.md section 4) — do not use it; NOAA `PRCP` is the clean version. |
-| `HoosierPass.csv` | `SWE` | **Input**, snowpack driving spring runoff. Also an **output**: predicting SWE decline/melt-out date from temperature is a smaller, well-posed regression, and cross-referencing `HoosierPass.csv` against `MichiganCreek.csv` on their shared date range is a ready-made **anomaly-detection** exercise — `MichiganCreek.csv`'s known bad patch (SWE 9.0 bracketed by zeros, see `AGENTS.md`) is exactly the kind of single-point sensor fault a simple z-score or isolation forest should flag automatically. |
+| `HoosierPass.csv` | `SWE` | **Input**, snowpack driving spring runoff. Also an **output**: predicting SWE decline/melt-out date from temperature is a smaller, well-posed regression (not yet implemented — see "What we're still missing" below). |
+| `MichiganCreek.csv` | `SWE` | **Output** for anomaly detection, not an input (Jake dropped it in favor of `HoosierPass.csv` for a reason — see `guide.md`). Its known bad patch (SWE 9.0 on 2026-05-12 to 05-15, bracketed by near-zero readings, per `AGENTS.md`) is a real, labeled sensor fault; `models.detect_anomalies` (`IsolationForest`) catches all four of those days. Loaded by [`data_loader.load_michigan_creek`](data_loader.py). |
 | `USC00058022.csv` | `PRCP`, `SNOW`, `TMAX`, `TMIN` | **Input** only, in this catalog. Weather driving everything downstream. |
 | `Strontia 0407_0819.xlsx` | `Temp_C`, `Conductivity`, `pH`, `Turbidity_NTU`, `Chl_ugL`, `Phycocyanin`, `ODO_mgL`, all by `Depth_m` | **Input** (closer, but shorter-record, alternative to the upstream gage — see [scenario1](challenge_writeups/scenario1_toc_alkalinity.md)) and **output** in its own right: surface-minus-bottom temperature per cast is a stratification/"lake turnover" signal (see [scenario3](challenge_writeups/scenario3_snowpack_system.md)), and depth-resolved turbidity before/after a storm is a direct read on how storms redistribute water quality through the column (see [scenario2](challenge_writeups/scenario2_storm_runoff.md)). Loaded by [`sonde_loader.py`](sonde_loader.py) — this file was absent from this workspace's `data/` earlier in this catalog's development; it is present now, and every section referencing it says so explicitly rather than silently updating the earlier "gap" claim. |
 
@@ -42,17 +43,80 @@ framings fall out of the same data with no new sources:
 1. **Flow forecasting (regression).** `SWE`, `roll_swe_7`, `TMAX`, `TMIN` →
    `Flow_CFS` a few days out. Snowmelt timing, independent of the treatment
    plant question — a Scenario 3 framing ("how hydrologic events move
-   through the system").
-2. **Sensor-fault detection (anomaly detection / one-class).** Any one USGS
-   gage column predicted from the rest, or a rolling z-score per column, to
-   flag readings like the `MichiganCreek.csv` bad patch automatically instead
-   of by inspection.
+   through the system"). **Not implemented** — see "What we're still
+   missing" below.
+2. **Sensor-fault detection (anomaly detection).** `models.detect_anomalies`
+   (`IsolationForest`) on `MichiganCreek.csv`'s SWE, conditioned on value +
+   day-over-day diffs + a rolling standard deviation. Validated against the
+   one labeled bad patch this repo already documents (`AGENTS.md`: SWE 9.0
+   on 2026-05-12 to 05-15) — **caught 4/4 of those exact days**, plus the
+   two transition days on either side, out of 16 total flagged across the
+   whole 4.5-year record. See
+   [`figures/18_anomaly_detection.png`](figures/18_anomaly_detection.png).
 3. **Hydrologic-regime discovery (unsupervised clustering).** No target at
    all: standardize the engineered predictors, cluster with KMeans, see
    whether the days split into recognizable regimes (baseflow, snowmelt,
    storm). Computed below.
 4. **Alkalinity-below-60 classification**, scored with a full precision/recall
-   curve rather than the single operating point in `guide.md` section 11.
+   curve rather than the single operating point in `guide.md` section 11,
+   and compared across two model families (random forest vs. logistic
+   regression — see below).
+
+## What we're still missing, and what would fit better
+
+A direct answer, revisited each time this catalog grows: two "other model
+families" were tried this round and the result was genuinely mixed, not a
+clean win --
+
+- **Gradient boosting** (`models.fit_gradient_boosting_importance`,
+  sklearn's `GradientBoostingRegressor`, untuned) is the family `guide.md`'s
+  own comparison actually won with (Jake's CatBoost beat his random forest
+  for both targets). This catalog's untuned version does not repeat that:
+  it's the *worst* model tried for TOC (R²=0.111) and only a partial win for
+  alkalinity (R²=0.327, beats the random forest, loses to SVR). Boosted
+  trees are known to be more hyperparameter-sensitive than random forests;
+  this reads as "needs the `GridSearchCV` and sample-weighting Jake's
+  pipeline used, which this catalog skipped for simplicity," not as
+  "boosting doesn't work here." See
+  [scenario1](challenge_writeups/scenario1_toc_alkalinity.md).
+- **Logistic regression** (`models.fit_logistic_baseline`) essentially ties
+  the random forest classifier for alkalinity-below-60 (ROC-AUC 0.844 vs.
+  0.840) — a linear model on 8 standardized features doing as well as a
+  300-tree forest suggests that boundary is close to linearly separable,
+  and the forest's nonlinear capacity isn't buying much there.
+
+Genuinely not attempted, in rough priority order if this catalog continues:
+
+1. **Hyperparameter tuning** (`GridSearchCV`/`RandomizedSearchCV`). Every
+   model here uses fixed, reasonable-looking defaults (`n_estimators=300`,
+   SVR's `C=10, epsilon=0.1`) copied across targets. Jake's own pipeline
+   tunes and sample-weights; this catalog's gradient-boosting result above
+   is the clearest sign this matters.
+2. **Flow forecasting** (idea #1 above) — listed since this catalog's first
+   version, never built. A small, self-contained regression, same shape as
+   everything else here.
+3. **Quantile / peak-focused regression** (`GradientBoostingRegressor(loss="quantile")`
+   or sample-weighted fitting, matching `guide.md` section 8's "weight days
+   above 3 mg/L TOC 1.5x"). Every model here optimizes mean-squared error,
+   but `guide.md` section 10 is explicit that Jake cares more about catching
+   peaks than average R² ("a model that nails the boring days and misses the
+   storm is worthless to an operator") — none of this catalog's models are
+   built toward that goal specifically.
+4. **Multi-output / joint modeling of TOC and alkalinity together.** Both
+   targets are fit independently throughout this catalog, even though they
+   correlate with overlapping predictors (`Specific_Cond_Mean` matters for
+   both). `sklearn.multioutput.MultiOutputRegressor` or a model with two
+   outputs might exploit that shared structure; untested here.
+5. **Gaussian Process Regression.** The dataset is small enough (~1,100
+   rows) for GPR to be tractable, and it would give calibrated prediction
+   intervals rather than a point estimate — arguably a better fit than any
+   model here for "give treatment staff actionable time to prepare," since
+   an uncertainty band is more actionable than an unqualified number.
+6. **Time-series-native models** (`statsmodels` SARIMAX/ARIMA). Every model
+   here treats lag as an engineered feature (`turb_flow` shifted N days);
+   none model autocorrelation or seasonality directly the way a proper
+   time-series model would. Untested whether that would out-perform the
+   lag-feature approach used throughout.
 
 ## Engineered features (inputs to every model below)
 
@@ -121,8 +185,10 @@ Generate with `python visualize.py`; written to `figures/`.
 | `14_depth_profiles.png` | Real depth profiles across the season -- the reservoir's thermocline forming from spring to summer. |
 | `15_storm_profile_comparison.png` | Full depth profile before/after a real 2026 storm -- does the signal reach every depth? |
 | `16_sonde_vs_gage_comparison.png` | Sonde vs. upstream gage, same restricted window -- is the closer sensor actually better? |
+| `17_classifier_comparison.png` | Alkalinity-below-60 classifier: random forest vs. logistic regression precision/recall curves. |
+| `18_anomaly_detection.png` | MichiganCreek SWE with IsolationForest-flagged anomalies, validated against the known bad patch. |
 
-See [`challenge_writeups/challenge_writeup.md`](challenge_writeups/challenge_writeup.md) for the per-scenario narrative these figures support: [Scenario 1](challenge_writeups/scenario1_toc_alkalinity.md) for model families, the lag sweep, and the sonde-as-predictor comparison (11-12, 16), [Scenario 2](challenge_writeups/scenario2_storm_runoff.md) for the regime clusters and storm depth-profile (05, 14-15), [Scenario 3](challenge_writeups/scenario3_snowpack_system.md) for the year-over-year comparison, transit-time tracing, and stratification (07-10, 13). [`viewer.html`](viewer.html) is a small web app (serve with `python3 serve.py` from the repo root) plotting the same predictions interactively, fed by `results/predictions.json`.
+See [`challenge_writeups/challenge_writeup.md`](challenge_writeups/challenge_writeup.md) for the per-scenario narrative these figures support: [Scenario 1](challenge_writeups/scenario1_toc_alkalinity.md) for model families, the lag sweep, the sonde-as-predictor comparison, and the classifier comparison (11-12, 16-17), [Scenario 2](challenge_writeups/scenario2_storm_runoff.md) for the regime clusters and storm depth-profile (05, 14-15), [Scenario 3](challenge_writeups/scenario3_snowpack_system.md) for the year-over-year comparison, transit-time tracing, and stratification (07-10, 13). [`viewer.html`](viewer.html) is a small web app (serve with `python3 serve.py` from the repo root) plotting the same predictions interactively, fed by `results/predictions.json`.
 
 ## Running it
 
