@@ -130,6 +130,22 @@ ROC-AUC (held-out) = 0.840
 | roll_flow_7 | 0.088 |
 | roll_swe_7 | 0.087 |
 
+## Chemical-dosing alert calendar (when to add chemical after a spike)
+
+Alkalinity trigger: `fit_logistic_baseline` probability of Alk_mg_L < 60 mg/L, thresholded to hold recall >= 0.8 (picked cutoff = 0.216, achieved recall = 0.803 on the 223 held-out low-alkalinity days).
+
+TOC trigger: `fit_quantile_regressor`'s predicted 90th-percentile band crossing 3 mg/L (Jake's own sample-weight cutoff, guide.md section 9).
+
+| trigger | held-out days flagged | out of | lead time (days) |
+|---|---:|---:|---:|
+| Alkalinity < 60 mg/L | 250 | 459 | 4 |
+| TOC predicted p90 >= 3 mg/L | 90 | 429 | 2 |
+| Combined (either trigger) | 277 | 471 | n/a (union of the two above) |
+
+Combined alert dates (held-out split): 2024-05-10, 2024-05-11, 2024-05-12, 2024-05-13, 2024-05-14, 2024-05-15, 2024-05-16, 2024-05-17, ... (269 more)
+
+Each alert date already reflects its target's own lag (2 days TOC, 4 days alkalinity) -- the model's prediction for that date is built entirely from upstream readings that many days old, so the date it fires is the lead time itself, not a separate estimate of one.
+
 ## Unsupervised hydrologic-regime clusters (k=3, TOC frame lag_days=2)
 
 | cluster | days | mean TOC_mg_L | mean Alk_mg_L | mean Flow_CFS |
