@@ -246,6 +246,30 @@ Jake's original notebooks lag NOAA precip 2 days further than the gage/DWR/SNOTE
 | Alk_mg_L | uniform (lag_days=4 for every source) | 0.234 |
 | Alk_mg_L | per-source (Jake's: precip lagged 2 days further) | 0.184 |
 
+## Hybrid lag: tuning precip's extra lag per target beats both fixed choices
+
+Neither fixed choice above is forced: uniform lag is precip_extra_days=0, Jake's own notebooks use precip_extra_days=2 for both targets. Scanning every candidate value per target picks whichever wins independently, rather than assuming one number fits both. Same random forest and feature list as the tables above; the usual caveat from the lag-day grid search applies here too -- a single 50/50-split R^2 is not a fully stable property of the model, so treat the winning value as a direction, not a promise.
+
+| precip extra days | TOC_mg_L held-out R^2 | Alk_mg_L held-out R^2 |
+|---:|---:|---:|
+| 0 | 0.357 | 0.222 |
+| 1 | 0.451 | 0.185 |
+| 2 | 0.599 | 0.184 |
+| 3 | 0.607 | 0.186 |
+| 4 | 0.650 | 0.228 |
+| 5 | 0.596 | 0.231 |
+| 6 | 0.502 | 0.241 |
+| 7 | 0.625 | 0.232 |
+
+Best precip_extra_days for TOC_mg_L: 4 (R^2=0.650)
+Best precip_extra_days for Alk_mg_L: 6 (R^2=0.241)
+
+Hybrid (TOC precip_extra_days=4, Alk precip_extra_days=6) vs. the two fixed choices:
+| target | uniform (extra=0) | Jake's fixed (extra=2) | hybrid (tuned) |
+|---|---:|---:|---:|
+| TOC_mg_L | 0.334 | 0.599 | 0.650 |
+| Alk_mg_L | 0.234 | 0.184 | 0.241 |
+
 ## Strontia profiling sonde: stratification (Scenario 3: "lake turnover")
 
 390 casts, 2026-04-07 to 2026-08-19.
