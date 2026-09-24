@@ -66,6 +66,22 @@ results, shifted 2 days (TOC) / 4 days (alkalinity) as Jake's own models do.
 > sync with the rest, with no offsetting benefit. Full numbers in
 > [`results/parameter_summary.md`](../results/parameter_summary.md)'s
 > "Per-source lag" section.
+>
+> **A hybrid beats both fixed choices.** Neither +0 (uniform) nor Jake's
+> fixed +2 is forced — scanning every candidate `precip_extra_days` per
+> target and picking whichever wins independently finds **+4 for TOC, +6
+> for alkalinity**, beating both prior approaches on both targets:
+
+| target | uniform (extra=0) | Jake's fixed (extra=2) | hybrid (tuned) |
+|---|---:|---:|---:|
+| TOC_mg_L | 0.334 | 0.599 | **0.650** |
+| Alk_mg_L | 0.234 | 0.184 | **0.241** |
+
+> Same caveat as the lag-day grid search below: a single 50/50-split R² is
+> not a fully stable property of the model, so treat the winning
+> `precip_extra_days` as a direction worth investigating further, not a
+> final answer — see `results/parameter_summary.md`'s "Hybrid lag" section
+> for the full 0-7 day scan behind this table.
 
 [`models.py`](../models.py) fits a **RandomForestRegressor** per target on a
 time-ordered (no shuffling, no leakage) split.

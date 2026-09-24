@@ -53,6 +53,15 @@ features don't lean on precipitation, so the extra shift just adds
 misalignment with no benefit). See `results/parameter_summary.md`'s
 "Per-source lag" section for the full table.
 
+A hybrid beats both: scanning every candidate `precip_extra_days` per target
+and picking whichever wins independently finds **+4 days for TOC** (R²=0.650)
+and **+6 days for alkalinity** (R²=0.241) — better than uniform *and* better
+than Jake's fixed +2 for both targets, not just one. Same caveat as the
+lag-day grid search above applies: a single 50/50-split R² isn't a fully
+stable property of the model, so treat the winning `precip_extra_days` as a
+direction, not a final answer. Full 0-7 day scan in
+`results/parameter_summary.md`'s "Hybrid lag" section.
+
 ## What this folder adds: new input/output pairings
 
 Beyond reproducing Scenario 1's two targets, four other shallow-learning
