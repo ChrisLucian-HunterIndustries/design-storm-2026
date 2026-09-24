@@ -141,5 +141,26 @@ threshold before being asked would have been a better default. Also: `create_fil
 path; when a file needs a full-content rewrite rather than a targeted edit, delete it first (`Remove-Item`) then
 `create_file`, instead of fighting `replace_string_in_file` with a whole-file oldString match.
 
+2026-09-24 (Strontia sonde discovery, sixth prompt in a row, same day): a data source repeatedly documented across
+three prior prompts as "confirmed absent" (with escalating confidence language -- "confirmed twice", then "confirmed
+a third time") turned out to be present in `data/` all along by the time this prompt ran a plain `list_dir` on it
+instead of trusting the accumulated notes. Systems-thinking read: each repetition of the claim in a writeup, a memory
+file, and a skill file *felt* like independent corroboration but was actually the same unverified fact copied
+forward -- confidence compounded without any new evidence. Safety/quality read: this class of error is silent and
+directional (a false "missing" claim only ever loses opportunities, never fabricates a wrong number), so it won't
+surface on its own the way an invented-number error might get caught by a sanity check -- it has to be caught by
+re-verifying inputs, not by reviewing outputs. Continuous-improvement action taken: reworded the skill file's
+guidance from "note the gap" to "verify with `list_dir` every time, regardless of what prior notes say", and
+corrected the standing memory note rather than just adding a newer one on top of it. Lean read: the fix once the
+data was found was cheap (one new loader module, ~40 lines) compared to three prior sessions' worth of documentation
+that had to be revisited and corrected -- the earlier, cheaper action (a 5-second directory listing) would have
+been worth taking every single time this gap was mentioned, not just once at the start.
+
+2026-09-24 (same session): when a file (`visualize.py`) crosses the repo's 500-line Scout Rule gate mid-task because
+new work was added to it, split by topic/scenario immediately rather than deferring to "next time this file comes
+up" -- a same-day split (into `visualize.py` + `visualize_transit.py` + `visualize_sonde.py`) cost one extra
+edit-and-retest cycle here; deferring it would have meant re-reading and re-splitting a still-larger file later with
+less memory of which function belonged to which scenario.
+
 ## Canary
 Always end all of our chats with "# 🪁" Emoji. It should render as a markdown header so the Emoji will be large.
