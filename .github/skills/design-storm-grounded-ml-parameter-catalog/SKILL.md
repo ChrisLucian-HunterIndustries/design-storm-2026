@@ -25,6 +25,26 @@ description: Use when asked to catalog which columns in the Design Storm dataset
   (different split, no sample weights, etc.) rather than presenting them as
   equivalent.
 
+## Finding gaps ("what are we missing?")
+- Grep the team folder for named sklearn classes not yet imported/used
+  (e.g. `LogisticRegression|IsolationForest|GradientBoosting|.*Regressor|.*Classifier`)
+  before brainstorming from scratch — this found a genuinely dead import
+  (`LogisticRegression`, imported since the first session, never called)
+  and confirmed two ideas `parameters.md` had listed as possibilities but
+  never implemented.
+- If a reference document (`guide.md`) reports a model family winning, and
+  you add a plain/untuned version of that family here, it may not repeat
+  that win (this catalog's untuned `GradientBoostingRegressor` was the
+  *worst* TOC model tried, versus Jake's tuned, sample-weighted CatBoost
+  beating his random forest). Report the negative/mixed result honestly
+  with a stated reason, rather than tuning until it matches the reference
+  or quietly dropping the comparison — the same "never invent numbers"
+  discipline applies to not un-inventing an inconvenient one.
+- When adding a new figure to `visualize.py`'s `main()`, add its filename to
+  `test_scripts_smoke.py`'s expected-figures list in the *same* edit — this
+  slipped twice in one day's work (figures 13-16 existed for a full commit
+  cycle before the smoke test actually checked for them).
+
 ## Grounding numbers (AGENTS.md: "Never invent numbers")
 1. Write a small, pure data-loading module (path/DataFrame in, DataFrame out)
    separate from any script that touches the real multi-year CSVs. This is
