@@ -157,6 +157,53 @@ description: Use when asked to catalog which columns in the Design Storm dataset
   cross-validation, showing up on a different axis. Report the range that's
   *consistently* positive/clustered as the meaningful read, not the single
   highest point in the grid.
+- `GridSearchCV` over `TimeSeriesSplit(n_splits=4)` on an untuned model that
+  scored badly (e.g. this catalog's untuned gradient boosting, TOC R²=0.111)
+  is worth trying before concluding a model family "doesn't work here" —
+  it fixed TOC's score to 0.561, the best single model tried for that
+  target. An untuned-and-bad result and a tuned-and-good result for the
+  *same* model class are both real findings worth reporting side by side.
+- Joint multi-output modeling (one estimator fit on 2D `y`, e.g.
+  `RandomForestRegressor().fit(X, df[[target_a, target_b]])`) can help one
+  target and hurt another at the same time — check whether the two targets
+  actually share the same preferred lag/frame before crediting or blaming
+  the joint-fitting itself. Here, alkalinity got much worse when forced
+  onto TOC's lag_days=2 frame instead of its own lag_days=4, which is a
+  frame-mismatch confound, not evidence against multi-output modeling.
+- `GaussianProcessRegressor` is the one sklearn regressor in this catalog
+  that returns calibrated uncertainty (`predict(..., return_std=True)`)
+  alongside a point estimate — frame it against the deck/guide.md's
+  "actionable time to prepare" language specifically, since a std-dev band
+  is a more direct answer to that than a bare R² number. Add
+  `n_restarts_optimizer=3` to reduce (not fully eliminate) an lbfgs
+  `ConvergenceWarning` on small/near-noise-free data; it's benign, not a
+  reason to drop the model.
+- `statsmodels` SARIMAX on this repo's real target series needs two fixes,
+  not one, to give a sane result (see `debugging.md` for the general
+  version): (1) `.reset_index(drop=True)` before fitting, because the real
+  DatetimeIndex has calendar gaps (no Jan-Mar rows) and statsmodels can't
+  build a forecast index from it otherwise; (2) `trend="c"` in the
+  `SARIMAX(...)` constructor, because without it an AR(1) forecast decays
+  toward zero (not the series' mean) over a long held-out horizon, which
+  silently produces a catastrophic negative R² (-14, observed here) that
+  looks like "SARIMAX just doesn't fit this data" but is actually a missing
+  intercept term. Always sanity-check a new time-series model's
+  `predictions.describe()` against `actual.describe()` before writing the
+  result into a doc.
+
+## Concurrent editing in this workspace
+- Check `git status` before your *first* commit of a session, not only your
+  last — this repo has repeatedly had legitimate finished-but-uncommitted
+  work sitting in the tree from a prior session (e.g. an AGENTS.md
+  Double-Loop-Learning entry, a `.github/skills/` folder) that looks like
+  it's from "right now" if you only check status once at the end.
+- If files you're about to `git add` show unstaged diffs you don't
+  recognize — especially if the unfamiliar diff calls functions you
+  yourself only just wrote earlier in the same session — that's a sign
+  something else (another chat window/session) is editing the same repo
+  concurrently, not leftover history. Don't commit it, discard it, or try
+  to "fix" it into your own commit; leave it untouched and tell the user
+  directly so they can check for another active session.
 
 ## Building a static web viewer (Scenario 1's "web application" ask)
 - Follow `design-storm-water-system-3d.html`'s own convention: a single
