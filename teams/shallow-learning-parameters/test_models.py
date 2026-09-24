@@ -11,7 +11,10 @@ import pytest
 from models import (
     best_lag,
     cluster_hydrologic_regimes,
+    detect_anomalies,
+    fit_gradient_boosting_importance,
     fit_linear_baseline,
+    fit_logistic_baseline,
     fit_random_forest_importance,
     fit_svr_baseline,
     fit_threshold_classifier,
@@ -53,6 +56,12 @@ def test_random_forest_ranks_true_driver_above_noise(synthetic_frame: pd.DataFra
     assert result.importances["driver"] > result.importances["other"]
 
 
+def test_gradient_boosting_ranks_true_driver_above_noise(synthetic_frame: pd.DataFrame) -> None:
+    result = fit_gradient_boosting_importance(synthetic_frame, ["driver", "other"], "target")
+    assert result.r2 > 0.8
+    assert result.importances["driver"] > result.importances["other"]
+
+
 def test_svr_baseline_recovers_strong_signal(synthetic_frame: pd.DataFrame) -> None:
     result = fit_svr_baseline(synthetic_frame, ["driver", "other"], "target")
     assert result.r2 > 0.8
@@ -83,6 +92,29 @@ def test_threshold_classifier_separates_clear_signal(synthetic_frame: pd.DataFra
     assert result.roc_auc > 0.8
     assert len(result.precision) == len(result.recall)
     assert "driver" in result.importances.index
+
+
+def test_logistic_baseline_separates_clear_signal(synthetic_frame: pd.DataFrame) -> None:
+    result = fit_logistic_baseline(
+        synthetic_frame, ["driver", "other"], "target", threshold=11.0, below=True
+    )
+    assert result.roc_auc > 0.8
+    assert len(result.precision) == len(result.recall)
+    assert result.importances["driver"] > result.importances["other"]
+
+
+def test_detect_anomalies_flags_an_obvious_outlier() -> None:
+    rng = np.random.default_rng(2)
+    n = 200
+    dates = pd.date_range("2022-01-01", periods=n, freq="D")
+    value = rng.normal(5, 0.2, size=n)
+    value[100] = 50.0  # one glaring outlier
+    df = pd.DataFrame({"value": value, "diff": np.abs(np.diff(value, prepend=value[0]))}, index=dates)
+
+    result = detect_anomalies(df, ["value", "diff"], contamination=0.02)
+    assert result.is_anomaly.loc[dates[100]]
+    # the score at the outlier should be lower (more anomalous) than a typical row
+    assert result.scores.loc[dates[100]] < result.scores.loc[dates[0]]
 
 
 @pytest.fixture

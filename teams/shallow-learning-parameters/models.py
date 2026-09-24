@@ -13,7 +13,12 @@ import numpy as np
 import pandas as pd
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
-from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+from sklearn.ensemble import (
+    GradientBoostingRegressor,
+    IsolationForest,
+    RandomForestClassifier,
+    RandomForestRegressor,
+)
 from sklearn.inspection import permutation_importance
 from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.metrics import precision_recall_curve, r2_score, roc_auc_score
@@ -47,6 +52,28 @@ def fit_random_forest_importance(
     train, test = time_ordered_split(clean)
 
     model = RandomForestRegressor(n_estimators=300, random_state=RANDOM_STATE)
+    model.fit(train[feature_cols], train[target_col])
+    predictions = model.predict(test[feature_cols])
+
+    importances = pd.Series(model.feature_importances_, index=feature_cols).sort_values(
+        ascending=False
+    )
+    return RegressionResult(r2=r2_score(test[target_col], predictions), importances=importances)
+
+
+def fit_gradient_boosting_importance(
+    df: pd.DataFrame, feature_cols: list[str], target_col: str
+) -> RegressionResult:
+    """Time-ordered train/test split, fit a GradientBoostingRegressor,
+    return held-out R^2 and feature importances. Boosted trees are the
+    model family guide.md's own comparison (Jake's CatBoost) actually won
+    with -- this is the plain-sklearn equivalent (no catboost/xgboost
+    dependency needed), same features and split as the random forest above
+    so the two are directly comparable."""
+    clean = df.dropna(subset=[*feature_cols, target_col])
+    train, test = time_ordered_split(clean)
+
+    model = GradientBoostingRegressor(n_estimators=300, random_state=RANDOM_STATE)
     model.fit(train[feature_cols], train[target_col])
     predictions = model.predict(test[feature_cols])
 
@@ -184,6 +211,37 @@ def fit_threshold_classifier(
     )
 
 
+def fit_logistic_baseline(
+    df: pd.DataFrame,
+    feature_cols: list[str],
+    target_col: str,
+    threshold: float,
+    below: bool = True,
+) -> ThresholdClassifierResult:
+    """Same binary classification task as `fit_threshold_classifier`
+    (e.g. alkalinity < 60), but a linear `LogisticRegression` baseline
+    instead of a random forest -- features are standardized first since
+    logistic regression is scale-sensitive. Same return shape, so the two
+    are directly comparable."""
+    clean = df.dropna(subset=[*feature_cols, target_col])
+    labels = (clean[target_col] < threshold) if below else (clean[target_col] >= threshold)
+    clean = clean.assign(_label=labels.astype(int))
+
+    train, test = time_ordered_split(clean)
+
+    model = make_pipeline(StandardScaler(), LogisticRegression(max_iter=1000))
+    model.fit(train[feature_cols], train["_label"])
+    scores = model.predict_proba(test[feature_cols])[:, 1]
+
+    precision, recall, thresholds = precision_recall_curve(test["_label"], scores)
+    auc = roc_auc_score(test["_label"], scores)
+    coefficients = model.named_steps["logisticregression"].coef_[0]
+    importances = pd.Series(np.abs(coefficients), index=feature_cols).sort_values(ascending=False)
+    return ThresholdClassifierResult(
+        precision=precision, recall=recall, thresholds=thresholds, roc_auc=auc, importances=importances
+    )
+
+
 def lag_correlation_scan(
     predictor: pd.Series, target: pd.Series, max_lag_days: int = 14
 ) -> pd.Series:
@@ -212,3 +270,26 @@ def lag_correlation_scan(
 def best_lag(scan: pd.Series) -> int:
     """The lag (days) with the largest-magnitude correlation in a lag scan."""
     return int(scan.abs().idxmax())
+
+
+@dataclass
+class AnomalyResult:
+    is_anomaly: pd.Series  # bool, indexed like the input rows actually used
+    scores: pd.Series  # IsolationForest's anomaly score, lower = more anomalous
+
+
+def detect_anomalies(df: pd.DataFrame, feature_cols: list[str], contamination: float = 0.01) -> AnomalyResult:
+    """Flag rows that look out of place given `feature_cols`, using
+    IsolationForest -- unsupervised, no labeled "bad data" needed. Meant for
+    sensor-fault detection (parameters.md's second, previously-unimplemented
+    framing): e.g. a value column plus its day-over-day differences will
+    flag a sensor stuck at an implausible constant, since a real signal
+    rarely holds dead flat while jumping sharply in and back out."""
+    clean = df.dropna(subset=feature_cols)
+    model = IsolationForest(contamination=contamination, random_state=RANDOM_STATE)
+    labels = model.fit_predict(clean[feature_cols])
+    scores = model.score_samples(clean[feature_cols])
+    return AnomalyResult(
+        is_anomaly=pd.Series(labels == -1, index=clean.index),
+        scores=pd.Series(scores, index=clean.index),
+    )
