@@ -235,6 +235,17 @@ Same random forest and feature list as above, refit at each candidate lag. Elsew
 | 7 | 0.388 | -0.062 |
 | 10 | 0.534 | -0.416 |
 
+## Per-source lag: does Jake's approach beat a flat 2/4-day lag?
+
+Jake's original notebooks lag NOAA precip 2 days further than the gage/DWR/SNOTEL sources (4 vs. 2 for TOC, 6 vs. 4 for alkalinity) to cover NOAA's own reporting delay, rather than shifting every predictor by one uniform number the way this catalog's own build_dataset does. Same random forest and feature list as the model-family table above.
+
+| target | lag approach | held-out R^2 |
+|---|---|---:|
+| TOC_mg_L | uniform (lag_days=2 for every source) | 0.334 |
+| TOC_mg_L | per-source (Jake's: precip lagged 2 days further) | 0.599 |
+| Alk_mg_L | uniform (lag_days=4 for every source) | 0.234 |
+| Alk_mg_L | per-source (Jake's: precip lagged 2 days further) | 0.184 |
+
 ## Strontia profiling sonde: stratification (Scenario 3: "lake turnover")
 
 390 casts, 2026-04-07 to 2026-08-19.
