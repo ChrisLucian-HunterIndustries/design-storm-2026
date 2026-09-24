@@ -148,6 +148,21 @@ ROC-AUC (held-out) = 0.840
 | 2025 | 4.869 | 14.500 | 386.263 | 734.000 | 2.368 | 3.100 |
 | 2026 | 2.999 | 7.900 | 328.710 | 620.000 | 2.181 | 2.700 |
 
+## Sensor-fault anomaly detection (previously an unimplemented idea in parameters.md)
+
+16 of 1596 days flagged (IsolationForest, contamination=0.01, features=['SWE', 'diff_prev', 'diff_next', 'rolling_std_5']).
+
+Known bad patch (AGENTS.md): SWE=9.0 on 2026-05-12 to 05-15. Caught 4/4 of those exact days.
+
+| flagged date | SWE | diff from previous day |
+|---|---:|---:|
+| 2026-05-11 | 0.000 | 0.000 |
+| 2026-05-12 | 9.000 | 9.000 |
+| 2026-05-13 | 9.000 | 0.000 |
+| 2026-05-14 | 9.000 | 0.000 |
+| 2026-05-15 | 9.000 | 0.000 |
+| 2026-05-16 | 0.000 | 9.000 |
+
 ## Empirical transit-time lag scan (Scenario 3: follow a parameter through the system)
 
 Correlation between each raw upstream predictor and each target, scanned over lags 0-10 days (models.lag_correlation_scan). This is a statistical fit, not a measured travel time -- see guide.md section 1.
@@ -166,8 +181,17 @@ Correlation between each raw upstream predictor and each target, scanned over la
 | TOC_mg_L | Linear (turb_flow only) | 0.505 |
 | TOC_mg_L | Random forest | 0.334 |
 | TOC_mg_L | SVR (RBF kernel, scaled features) | 0.502 |
+| TOC_mg_L | Gradient boosting | 0.111 |
 | Alk_mg_L | Random forest | 0.234 |
 | Alk_mg_L | SVR (RBF kernel, scaled features) | 0.423 |
+| Alk_mg_L | Gradient boosting | 0.327 |
+
+## Alkalinity classifier: model family comparison
+
+| model | ROC-AUC |
+|---|---:|
+| Random forest classifier | 0.840 |
+| Logistic regression (scaled features) | 0.844 |
 
 ## Lag-day grid search (Scenario 1: "try different... lag-times")
 
