@@ -130,3 +130,33 @@ def fit_threshold_classifier(
     return ThresholdClassifierResult(
         precision=precision, recall=recall, thresholds=thresholds, roc_auc=auc, importances=importances
     )
+
+
+def lag_correlation_scan(
+    predictor: pd.Series, target: pd.Series, max_lag_days: int = 14
+) -> pd.Series:
+    """For each lag 0..max_lag_days, shift `predictor` forward that many days
+    and correlate it against `target` on shared dates. Returns a Series
+    indexed by lag (days) holding the Pearson r at that lag.
+
+    This is Scenario 3's "trace a parameter through the system": the lag with
+    the largest-magnitude correlation is an empirical estimate of how long a
+    signal takes to travel from the upstream sensor to the Foothills lab
+    result. It is a statistical fit, not a measured travel time -- guide.md
+    section 1 is explicit that Denver Water's own hydraulic model puts the
+    physical transit at about four hours, while the multi-day lag that
+    actually predicts best is thought to reflect mixing/deposition in the
+    reservoir. Do not present this lag as a literal travel time."""
+    predictor = predictor.rename("predictor")
+    target = target.rename("target")
+    scores: dict[int, float] = {}
+    for lag in range(max_lag_days + 1):
+        shifted = predictor.shift(lag, freq="D")
+        joined = pd.concat([shifted, target], axis=1, sort=False).dropna()
+        scores[lag] = joined["predictor"].corr(joined["target"]) if len(joined) >= 10 else np.nan
+    return pd.Series(scores, name="correlation")
+
+
+def best_lag(scan: pd.Series) -> int:
+    """The lag (days) with the largest-magnitude correlation in a lag scan."""
+    return int(scan.abs().idxmax())

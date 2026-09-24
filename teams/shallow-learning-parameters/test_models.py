@@ -9,10 +9,12 @@ import pandas as pd
 import pytest
 
 from models import (
+    best_lag,
     cluster_hydrologic_regimes,
     fit_linear_baseline,
     fit_random_forest_importance,
     fit_threshold_classifier,
+    lag_correlation_scan,
     time_ordered_split,
 )
 
@@ -64,3 +66,39 @@ def test_threshold_classifier_separates_clear_signal(synthetic_frame: pd.DataFra
     assert result.roc_auc > 0.8
     assert len(result.precision) == len(result.recall)
     assert "driver" in result.importances.index
+
+
+@pytest.fixture
+def lagged_signal() -> tuple[pd.Series, pd.Series, int]:
+    """White-noise predictor (no autocorrelation) and a target that is
+    exactly the predictor from `true_lag` days earlier, plus tiny noise --
+    so only lag == true_lag should show a strong correlation."""
+    rng = np.random.default_rng(1)
+    n = 200
+    true_lag = 3
+    dates = pd.date_range("2022-01-01", periods=n, freq="D")
+    predictor = pd.Series(rng.normal(size=n), index=dates, name="p")
+    target = predictor.shift(true_lag, freq="D").reindex(dates) + rng.normal(0, 0.01, size=n)
+    return predictor, target.rename("t"), true_lag
+
+
+def test_lag_correlation_scan_peaks_at_true_lag(
+    lagged_signal: tuple[pd.Series, pd.Series, int],
+) -> None:
+    predictor, target, true_lag = lagged_signal
+    scan = lag_correlation_scan(predictor, target, max_lag_days=10)
+
+    assert len(scan) == 11
+    assert scan[true_lag] > 0.99
+    assert best_lag(scan) == true_lag
+    # a lag far from the true one should show near-zero correlation (white noise)
+    assert abs(scan[0]) < 0.3
+
+
+def test_lag_correlation_scan_returns_nan_below_minimum_overlap() -> None:
+    dates = pd.date_range("2022-01-01", periods=3, freq="D")
+    predictor = pd.Series([1.0, 2.0, 3.0], index=dates)
+    target = pd.Series([1.0, 2.0, 3.0], index=dates)
+
+    scan = lag_correlation_scan(predictor, target, max_lag_days=2)
+    assert scan.isna().all()
