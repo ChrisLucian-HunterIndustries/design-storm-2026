@@ -183,3 +183,31 @@ Same random forest and feature list as above, refit at each candidate lag. Elsew
 | 5 | 0.357 | 0.014 |
 | 7 | 0.388 | -0.062 |
 | 10 | 0.534 | -0.416 |
+
+## Strontia profiling sonde: stratification (Scenario 3: "lake turnover")
+
+390 casts, 2026-04-07 to 2026-08-19.
+
+- Surface-bottom temperature difference: min -0.003°C, max 8.252°C, mean 3.957°C.
+- Most mixed cast (smallest difference, closest to a turnover state): 2026-07-14, -0.003°C (surface 18.508°C, bottom 18.511°C).
+- Most stratified cast: 2026-05-15, 8.252°C (surface 15.791°C, bottom 7.539°C).
+
+## Strontia profiling sonde as a closer predictor (Scenario 1: "introduce real-time Strontia profiling sonde data")
+
+Same 2026-04-07 to 2026-08-19 window for both sensors (135 lab results).
+
+| sensor | predictor | target | best lag (days) | correlation at best lag |
+|---|---|---|---:|---:|
+| sonde (Strontia) | Turbidity_NTU | TOC_mg_L | 10 | 0.160 |
+| USGS gage (upstream) | Turbidity_Median | TOC_mg_L | 4 | 0.200 |
+| sonde (Strontia) | Conductivity | Alk_mg_L | 7 | -0.404 |
+| USGS gage (upstream) | Specific_Cond_Mean | Alk_mg_L | 4 | 0.486 |
+
+## Storm impact on the reservoir's depth profile (Scenario 2: "how do water quality parameters change and distribute by depth")
+
+Storm date (peak flow and turbidity in the sonde's window): 2026-07-18.
+
+| cast | surface turbidity (NTU) | surface conductivity | bottom temp (C) | surface temp (C) |
+|---|---:|---:|---:|---:|
+| before: 2026-07-17 18:01:59 | 0.910 | 296.520 | 18.398 | 20.014 |
+| after: 2026-07-19 00:06:41 | 1.020 | 295.260 | 14.385 | 19.897 |
