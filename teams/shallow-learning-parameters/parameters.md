@@ -62,7 +62,7 @@ framings fall out of the same data with no new sources:
    and compared across two model families (random forest vs. logistic
    regression — see below).
 
-## What we're still missing, and what would fit better
+## What we were missing, and what fit better once we tried it
 
 A direct answer, revisited each time this catalog grows: two "other model
 families" were tried this round and the result was genuinely mixed, not a
@@ -85,38 +85,81 @@ clean win --
   300-tree forest suggests that boundary is close to linearly separable,
   and the forest's nonlinear capacity isn't buying much there.
 
-Genuinely not attempted, in rough priority order if this catalog continues:
+The six ideas below were "genuinely not attempted" as of the previous version
+of this document. All six are now implemented in
+[`models_advanced.py`](models_advanced.py) and
+[`data_loader.build_flow_forecast_dataset`](data_loader.py), with report
+tables built by [`analyze_advanced.py`](analyze_advanced.py) and figures
+19-24 (see [`visualize_advanced.py`](visualize_advanced.py)). Full numbers:
+[`results/parameter_summary.md`](results/parameter_summary.md#hyperparameter-tuning-gridsearchcv-over-gradient-boosting).
+In priority order, with the real result:
 
-1. **Hyperparameter tuning** (`GridSearchCV`/`RandomizedSearchCV`). Every
-   model here uses fixed, reasonable-looking defaults (`n_estimators=300`,
-   SVR's `C=10, epsilon=0.1`) copied across targets. Jake's own pipeline
-   tunes and sample-weights; this catalog's gradient-boosting result above
-   is the clearest sign this matters.
-2. **Flow forecasting** (idea #1 above) — listed since this catalog's first
-   version, never built. A small, self-contained regression, same shape as
-   everything else here.
-3. **Quantile / peak-focused regression** (`GradientBoostingRegressor(loss="quantile")`
-   or sample-weighted fitting, matching `guide.md` section 8's "weight days
-   above 3 mg/L TOC 1.5x"). Every model here optimizes mean-squared error,
-   but `guide.md` section 10 is explicit that Jake cares more about catching
-   peaks than average R² ("a model that nails the boring days and misses the
-   storm is worthless to an operator") — none of this catalog's models are
-   built toward that goal specifically.
-4. **Multi-output / joint modeling of TOC and alkalinity together.** Both
-   targets are fit independently throughout this catalog, even though they
-   correlate with overlapping predictors (`Specific_Cond_Mean` matters for
-   both). `sklearn.multioutput.MultiOutputRegressor` or a model with two
-   outputs might exploit that shared structure; untested here.
-5. **Gaussian Process Regression.** The dataset is small enough (~1,100
-   rows) for GPR to be tractable, and it would give calibrated prediction
-   intervals rather than a point estimate — arguably a better fit than any
-   model here for "give treatment staff actionable time to prepare," since
-   an uncertainty band is more actionable than an unqualified number.
-6. **Time-series-native models** (`statsmodels` SARIMAX/ARIMA). Every model
-   here treats lag as an engineered feature (`turb_flow` shifted N days);
-   none model autocorrelation or seasonality directly the way a proper
-   time-series model would. Untested whether that would out-perform the
-   lag-feature approach used throughout.
+1. **Hyperparameter tuning** (`GridSearchCV` over `GradientBoostingRegressor`,
+   `TimeSeriesSplit(n_splits=4)`, grid over `n_estimators`/`max_depth`/
+   `learning_rate`) confirms the earlier hunch: TOC's untuned R²=0.111
+   jumps to **0.561** once tuned — now the best single model tried for TOC
+   anywhere in this catalog, beating SVR (0.502) and the random forest
+   (0.334). Alkalinity improves more modestly, 0.327 → **0.387** (still
+   below SVR's 0.423). Best TOC params: `max_depth=4, learning_rate=0.01,
+   n_estimators=100`; best alkalinity params: `max_depth=2, learning_rate=0.01,
+   n_estimators=300`. This confirms the earlier read: boosting wasn't a bad
+   model family here, it was an untuned one.
+2. **Flow forecasting** (idea #1 above, `data_loader.build_flow_forecast_dataset`,
+   3 days ahead): a strong, useful result on the first try — linear
+   regression on today's `Flow_CFS` alone scores **R²=0.910**; a random
+   forest given today's flow, its 7-day rolling mean, SWE, and weather
+   scores 0.887 (slightly *worse* than the single-feature linear model, and
+   `Flow_CFS` dominates feature importance at 0.731 vs. 0.019 for
+   `roll_swe_7`) — 3-day flow is mostly explained by persistence, not by
+   snowpack or weather conditioning at that short a horizon.
+3. **Quantile / peak-focused regression** (`GradientBoostingRegressor(loss="quantile", alpha=0.9)`):
+   TOC's predicted 90th-percentile band is well-calibrated (coverage=0.918,
+   target 0.9); alkalinity's is a bit loose (coverage=0.839, meaning actual
+   alkalinity exceeds the "90th percentile" prediction about 16% of the
+   time instead of the intended 10% — under-covering, i.e. less
+   conservative than the label implies).
+4. **Multi-output / joint modeling of TOC and alkalinity together** (a
+   single `RandomForestRegressor` fit on both targets at once, scored on
+   the shared lag_days=2 frame against each target's own independent
+   random forest on that same frame): a genuinely mixed result, not a clean
+   win. TOC improves substantially, 0.334 → **0.569** — sharing trees with
+   alkalinity's signal helps TOC. Alkalinity gets *worse*, 0.170 → **-0.055**
+   (below a "always predict the mean" baseline) — forcing alkalinity onto
+   TOC's lag_days=2 frame instead of its own preferred lag_days=4 (see the
+   lag-day grid search table) costs it more than any benefit from joint
+   tree-sharing recovers. Read together with the lag-day grid search this
+   already reports: the lag mismatch, not multi-output modeling itself, is
+   the likely cause.
+5. **Gaussian Process Regression** (`ConstantKernel * RBF + WhiteKernel`,
+   standardized features): both targets land in the middle of the pack —
+   TOC R²=0.357 (between the untuned random forest and tuned gradient
+   boosting), alkalinity R²=0.516 (better than every other model family
+   tried for alkalinity except the tuned gradient boosting). Mean predicted
+   std dev is 0.301 mg/L for TOC (roughly 10-15% of a typical 2-3 mg/L
+   reading) and 5.414 mg/L for alkalinity — both informative, non-trivial
+   uncertainty bands rather than a band so wide it's meaningless. This is
+   the only model family here that hands an operator a calibrated
+   uncertainty band alongside the point estimate.
+6. **Time-series-native models** (`statsmodels` SARIMAX, order (1,0,1),
+   with the strongest engineered predictor as an exogenous regressor): the
+   weakest of the six results, and a genuine, instructive failure along the
+   way. The literal-index version of this model (fitting on the real
+   DatetimeIndex) crashes outright ("No supported index is available") —
+   the real target series has calendar gaps (no Jan-Mar rows,
+   `guide.md` section 4), so it has no fixed frequency. Fitting on a plain
+   `RangeIndex` fixes the crash but the first working version still scored
+   R²=-13.988 for TOC: an AR(1) with no intercept (statsmodels' default)
+   decays toward *zero*, not toward the series' own mean, so every forecast
+   over a long held-out horizon collapsed toward 0 against actual values of
+   2-6 mg/L. Adding `trend="c"` (an explicit constant/intercept term) fixes
+   that decay and brings TOC to **R²=0.270** and alkalinity to **R²=0.108**
+   — positive, but the weakest of the six new results, and well below the
+   lag-as-feature models elsewhere in this catalog. The likely cause: fitting
+   on a RangeIndex means the AR/MA terms treat consecutive lab results as
+   consecutive time steps regardless of the real calendar gap between them
+   — a real limitation of this approach on this particular dataset, not a
+   reason to prefer SARIMAX over the lag-feature approach used everywhere
+   else here.
 
 ## Engineered features (inputs to every model below)
 
@@ -150,10 +193,28 @@ one engineered loading term does most of the work a whole forest does.
 `turb_flow` dominates for TOC (0.47 importance), `Specific_Cond_Mean`
 dominates for alkalinity (0.49-0.54 across the regressor and classifier).
 
-**Alkalinity < 60 mg/L classifier**: ROC-AUC = 0.840 on the held-out split.
-Full precision/recall tradeoff in
+**Alkalinity < 60 mg/L classifier**: ROC-AUC = 0.840 (random forest) / 0.844
+(logistic regression) on the held-out split. Full precision/recall tradeoff in
 [`figures/06_alkalinity_classifier_pr_curve.png`](figures/06_alkalinity_classifier_pr_curve.png)
-rather than the single point `guide.md` reports.
+rather than the single point `guide.md` reports; the literal ROC curve (true
+vs. false positive rate) behind that AUC number is
+[`figures/25_alkalinity_roc_curve.png`](figures/25_alkalinity_roc_curve.png).
+
+**Chemical-dosing alert calendar** (`dosing_alerts.py`/`analyze_dosing.py`):
+answers "when do we know to add the chemical after a spike" directly, rather
+than reporting fit quality alone. Alkalinity's trigger is the classifier
+above, but with its probability cutoff tuned to hold recall ≥ 0.8 instead of
+sklearn's default 0.5 (cutoff = 0.216, achieved recall = 0.803 on 223
+held-out low-alkalinity days) — a missed low-alkalinity day costs more than a
+false alarm. TOC's trigger is the 90th-percentile quantile regressor's
+predicted band crossing 3 mg/L (Jake's own sample-weight cutoff), which
+catches peaks directly instead of via a mean-fit model. Both lags are already
+baked into the features, so the date an alert fires is itself the lead time
+(2 days for TOC, 4 for alkalinity) — no separate lead-time estimate needed.
+See [`figures/26_dosing_alert_timeline.png`](figures/26_dosing_alert_timeline.png)
+and [Scenario 1](challenge_writeups/scenario1_toc_alkalinity.md) for the full
+numbers and the honest caveat on alkalinity's trigger (recall-tuning it this
+aggressively means it fires on 250 of 459 held-out days, more than half).
 
 **Unsupervised hydrologic-regime clusters** (KMeans, k=3, on every engineered
 feature, TOC-frame lag): one small cluster of 36 days stands out with mean
@@ -187,6 +248,8 @@ Generate with `python visualize.py`; written to `figures/`.
 | `16_sonde_vs_gage_comparison.png` | Sonde vs. upstream gage, same restricted window -- is the closer sensor actually better? |
 | `17_classifier_comparison.png` | Alkalinity-below-60 classifier: random forest vs. logistic regression precision/recall curves. |
 | `18_anomaly_detection.png` | MichiganCreek SWE with IsolationForest-flagged anomalies, validated against the known bad patch. |
+| `25_alkalinity_roc_curve.png` | Alkalinity-below-60 classifier: true ROC curve (TPR vs. FPR), random forest vs. logistic regression, with the y=x random-classifier reference line. |
+| `26_dosing_alert_timeline.png` | Chemical-dosing alert calendar: TOC's predicted-p90-crosses-3mg/L trigger and alkalinity's recall-tuned classifier trigger, alert dates marked. |
 
 See [`challenge_writeups/challenge_writeup.md`](challenge_writeups/challenge_writeup.md) for the per-scenario narrative these figures support: [Scenario 1](challenge_writeups/scenario1_toc_alkalinity.md) for model families, the lag sweep, the sonde-as-predictor comparison, and the classifier comparison (11-12, 16-17), [Scenario 2](challenge_writeups/scenario2_storm_runoff.md) for the regime clusters and storm depth-profile (05, 14-15), [Scenario 3](challenge_writeups/scenario3_snowpack_system.md) for the year-over-year comparison, transit-time tracing, and stratification (07-10, 13). [`viewer.html`](viewer.html) is a small web app (serve with `python3 serve.py` from the repo root) plotting the same predictions interactively, fed by `results/predictions.json`.
 

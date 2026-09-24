@@ -156,6 +156,58 @@ suggests the below-60 boundary is close to linearly separable in this
 feature space, not a case where the forest's ability to model nonlinear
 interactions is buying anything.
 
+## When to add the chemical: a dosing-alert calendar
+
+None of the numbers above answer the operational question directly: given a
+spike, *when* does a treatment operator know to add chemical? Reporting
+held-out R² or ROC-AUC in isolation doesn't say that — the answer needs a
+trigger rule with a lead time attached, not a fit-quality score.
+[`dosing_alerts.py`](../dosing_alerts.py)/[`analyze_dosing.py`](../analyze_dosing.py)
+build one on top of models already above, no new model family required:
+
+- **Alkalinity** already has a real yes/no threshold (below 60 mg/L), so its
+  trigger reuses the logistic classifier above — but with its probability
+  cutoff picked to hold **recall ≥ 0.8** instead of sklearn's default 0.5.
+  `guide.md` section 11 is explicit about the asymmetry: a false alarm just
+  means "operators prepare for nothing" (cheap), while a missed low-alkalinity
+  day means the chemical needed didn't go in (expensive) — recall, not
+  accuracy, is the metric that matches that cost structure. On the real held-out
+  split this picks a cutoff of **0.216** (well below the default 0.5) and
+  achieves **recall = 0.803** on the 223 held-out low-alkalinity days.
+- **TOC** has no natural yes/no threshold, so its trigger is the 90th-percentile
+  quantile regressor's predicted band (from the deeper model-family section
+  below) crossing **3 mg/L** — Jake's own sample-weight cutoff (`guide.md`
+  section 9) — instead of a mean-fit point estimate crossing it. This targets
+  "catching peaks" directly, the way guide.md section 10 asks for, rather than
+  hoping a mean-squared-error model happens to get the peak right too.
+- **Lead time comes for free**: both targets' features are already shifted
+  (2 days TOC, 4 days alkalinity) before fitting, so the date a trigger fires
+  *is* the lead time — no separate estimate is needed.
+
+| trigger | held-out days flagged | out of | lead time (days) |
+|---|---:|---:|---:|
+| Alkalinity < 60 mg/L (recall-tuned) | 250 | 459 | 4 |
+| TOC predicted p90 ≥ 3 mg/L | 90 | 429 | 2 |
+| Combined (either trigger) | 277 | 471 | n/a (union) |
+
+![Chemical-dosing alert calendar](../figures/26_dosing_alert_timeline.png)
+
+The TOC panel is the cleaner result: 90 alert days, visibly clustered around
+the real spring-2024 and spring-2025 spikes rather than scattered randomly,
+and the predicted band crosses 3 mg/L a little ahead of the actual value each
+time. The alkalinity panel needs the same caveat `guide.md` itself gives the
+underlying classifier: tuning the cutoff this aggressively for recall means it
+fires on 250 of 459 held-out days — **more than half** — because alkalinity
+hovers so close to 58-60 mg/L that a recall-first cutoff trades away most of
+its precision to catch it. That is an honest, expected consequence of
+prioritizing "don't miss a low day" over "don't cry wolf," not a bug — but it
+means this trigger, as tuned here, is better read as "alkalinity is currently
+in its normal borderline range, stay alert" than as a crisp per-day dosing
+instruction, consistent with `guide.md`'s own "not yet something an operator
+should trust" verdict on this classifier. A narrower `min_recall` (e.g. 0.6)
+would raise precision at the cost of missing more real low days — a real
+operational tradeoff this calendar makes explicit rather than picking for you.
+
 ## A web viewer for "projected TOC and/or alkalinity"
 
 The deck's fourth bullet asks for a web application to view predictions
