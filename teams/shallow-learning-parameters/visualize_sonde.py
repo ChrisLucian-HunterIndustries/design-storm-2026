@@ -149,12 +149,13 @@ def plot_sonde_vs_gage_comparison(
     axes[0].set_ylabel("correlation at best lag")
 
     axes[1].bar(
-        ["sonde\n(conductivity)", "gage\n(conductivity)"],
+        ["sonde\n(corr. w/ conductivity)", "gage\n(corr. w/ conductivity)"],
         [alk_sonde[best_lag(alk_sonde)], alk_gage[best_lag(alk_gage)]],
         color=["tab:orange", "tab:blue"],
     )
     axes[1].axhline(0, color="black", linewidth=0.8)
     axes[1].set_title("Alk_mg_L")
+    axes[1].set_ylabel("correlation at best lag")  # bars are r, not raw conductivity -- a negative bar is a valid r, not a sensor error
 
     fig.suptitle(f"Sonde vs. upstream gage, same window ({start.date()} to {end.date()})")
     fig.tight_layout()
