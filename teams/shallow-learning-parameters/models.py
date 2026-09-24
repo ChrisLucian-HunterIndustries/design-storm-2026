@@ -181,6 +181,7 @@ class ThresholdClassifierResult:
     importances: pd.Series
     fpr: np.ndarray
     tpr: np.ndarray
+    scores: pd.Series  # predicted probability of the positive class, indexed by test-row date
 
 
 def fit_threshold_classifier(
@@ -212,6 +213,7 @@ def fit_threshold_classifier(
     return ThresholdClassifierResult(
         precision=precision, recall=recall, thresholds=thresholds, roc_auc=auc,
         importances=importances, fpr=fpr, tpr=tpr,
+        scores=pd.Series(scores, index=test.index),
     )
 
 
@@ -245,6 +247,7 @@ def fit_logistic_baseline(
     return ThresholdClassifierResult(
         precision=precision, recall=recall, thresholds=thresholds, roc_auc=auc,
         importances=importances, fpr=fpr, tpr=tpr,
+        scores=pd.Series(scores, index=test.index),
     )
 
 
