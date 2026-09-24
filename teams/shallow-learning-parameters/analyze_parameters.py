@@ -17,6 +17,7 @@ from data_loader import (
     build_dataset,
     feature_columns,
     load_dwr_telemetry,
+    load_michigan_creek,
     load_snowpack,
     load_target,
     load_usgs_gage,
@@ -27,7 +28,10 @@ from data_loader import (
 from models import (
     best_lag,
     cluster_hydrologic_regimes,
+    detect_anomalies,
+    fit_gradient_boosting_importance,
     fit_linear_baseline,
+    fit_logistic_baseline,
     fit_random_forest_importance,
     fit_svr_baseline,
     fit_threshold_classifier,
@@ -146,21 +150,42 @@ def _lag_scan_table(data_dir: Path) -> list[str]:
 def _model_family_table(df_toc: pd.DataFrame, df_alk: pd.DataFrame) -> list[str]:
     """Deck slide 9: "try different models (like support-vector machines)...
     to see if they can improve performance." Same held-out split, same
-    feature lists, three model families side by side."""
+    feature lists, four model families side by side -- including gradient
+    boosting, the family guide.md's own comparison (Jake's CatBoost) won
+    with, which earlier versions of this table omitted."""
     lines = ["| target | model | held-out R^2 |", "|---|---|---:|"]
 
     _, toc_linear_r2 = fit_linear_baseline(df_toc, "turb_flow", "TOC_mg_L")
     toc_rf_r2 = fit_random_forest_importance(df_toc, TOC_FEATURES, "TOC_mg_L").r2
     toc_svr_r2 = fit_svr_baseline(df_toc, TOC_FEATURES, "TOC_mg_L").r2
+    toc_gbr_r2 = fit_gradient_boosting_importance(df_toc, TOC_FEATURES, "TOC_mg_L").r2
     lines.append(f"| TOC_mg_L | Linear (turb_flow only) | {_fmt(toc_linear_r2)} |")
     lines.append(f"| TOC_mg_L | Random forest | {_fmt(toc_rf_r2)} |")
     lines.append(f"| TOC_mg_L | SVR (RBF kernel, scaled features) | {_fmt(toc_svr_r2)} |")
+    lines.append(f"| TOC_mg_L | Gradient boosting | {_fmt(toc_gbr_r2)} |")
 
     alk_rf_r2 = fit_random_forest_importance(df_alk, ALK_FEATURES, "Alk_mg_L").r2
     alk_svr_r2 = fit_svr_baseline(df_alk, ALK_FEATURES, "Alk_mg_L").r2
+    alk_gbr_r2 = fit_gradient_boosting_importance(df_alk, ALK_FEATURES, "Alk_mg_L").r2
     lines.append(f"| Alk_mg_L | Random forest | {_fmt(alk_rf_r2)} |")
     lines.append(f"| Alk_mg_L | SVR (RBF kernel, scaled features) | {_fmt(alk_svr_r2)} |")
+    lines.append(f"| Alk_mg_L | Gradient boosting | {_fmt(alk_gbr_r2)} |")
     return lines
+
+
+def _classifier_family_table(df_alk: pd.DataFrame) -> list[str]:
+    """A second "try different models" comparison, this time for the
+    alkalinity-below-60 classifier: random forest vs. a logistic regression
+    baseline (`LogisticRegression` was imported in models.py but never
+    actually used until this comparison)."""
+    rf_result = fit_threshold_classifier(df_alk, ALK_FEATURES, "Alk_mg_L", threshold=60.0)
+    logistic_result = fit_logistic_baseline(df_alk, ALK_FEATURES, "Alk_mg_L", threshold=60.0)
+    return [
+        "| model | ROC-AUC |",
+        "|---|---:|",
+        f"| Random forest classifier | {_fmt(rf_result.roc_auc)} |",
+        f"| Logistic regression (scaled features) | {_fmt(logistic_result.roc_auc)} |",
+    ]
 
 
 def _lag_day_grid_search_table(data_dir: Path) -> list[str]:
@@ -252,6 +277,43 @@ def _storm_profile_table(casts: pd.DataFrame, storm_date: pd.Timestamp) -> list[
             f"| {label} | {_fmt(cast['surface_turbidity_ntu'])} | {_fmt(cast['surface_conductivity'])} | "
             f"{_fmt(cast['bottom_temp_c'])} | {_fmt(cast['surface_temp_c'])} |"
         )
+    return lines
+
+
+def _anomaly_detection_table(data_dir: Path) -> list[str]:
+    """parameters.md's previously-unimplemented sensor-fault framing:
+    IsolationForest on MichiganCreek's SWE, validated against the one
+    labeled bad patch this repo already knows about (AGENTS.md: SWE 9.0 on
+    2026-05-12 to 05-15, bracketed by near-zero readings) -- a real ground
+    truth to check the detector against, not just a plausible-looking
+    result."""
+    creek = load_michigan_creek(data_dir)
+    features = pd.DataFrame(index=creek.index)
+    features["SWE"] = creek["SWE"]
+    features["diff_prev"] = creek["SWE"].diff().abs()
+    features["diff_next"] = creek["SWE"].diff(-1).abs()
+    features["rolling_std_5"] = creek["SWE"].rolling(5, center=True).std()
+
+    feature_cols = ["SWE", "diff_prev", "diff_next", "rolling_std_5"]
+    result = detect_anomalies(features, feature_cols, contamination=0.01)
+    flagged_dates = sorted(result.is_anomaly[result.is_anomaly].index)
+
+    known_bad_dates = pd.date_range("2026-05-12", "2026-05-15")
+    caught = [d for d in known_bad_dates if d in flagged_dates]
+
+    lines = [
+        f"{len(flagged_dates)} of {result.is_anomaly.notna().sum()} days flagged "
+        f"(IsolationForest, contamination=0.01, features={feature_cols}).\n",
+        f"Known bad patch (AGENTS.md): SWE=9.0 on 2026-05-12 to 05-15. Caught "
+        f"{len(caught)}/{len(known_bad_dates)} of those exact days.\n",
+        "| flagged date | SWE | diff from previous day |",
+        "|---|---:|---:|",
+    ]
+    for date in flagged_dates:
+        if pd.Timestamp("2026-04-01") <= date <= pd.Timestamp("2026-06-30"):
+            lines.append(
+                f"| {date.date()} | {_fmt(features.loc[date, 'SWE'])} | {_fmt(features.loc[date, 'diff_prev'])} |"
+            )
     return lines
 
 
@@ -370,6 +432,11 @@ def main() -> None:
     lines += _yearly_summary_table(DATA_DIR)
 
     lines.append(
+        "\n## Sensor-fault anomaly detection (previously an unimplemented idea in parameters.md)\n"
+    )
+    lines += _anomaly_detection_table(DATA_DIR)
+
+    lines.append(
         "\n## Empirical transit-time lag scan (Scenario 3: follow a parameter through the system)\n"
     )
     lines.append(
@@ -383,6 +450,9 @@ def main() -> None:
         "\n## Model family comparison (Scenario 1: \"try different models like support-vector machines\")\n"
     )
     lines += _model_family_table(df_toc, df_alk)
+
+    lines.append("\n## Alkalinity classifier: model family comparison\n")
+    lines += _classifier_family_table(df_alk)
 
     lines.append(
         "\n## Lag-day grid search (Scenario 1: \"try different... lag-times\")\n"

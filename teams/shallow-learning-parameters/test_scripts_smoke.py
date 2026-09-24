@@ -56,6 +56,12 @@ def _write_synthetic_dataset(data_dir: Path, n_days: int = 90) -> None:
         data_dir / "HoosierPass.csv", index=False
     )
 
+    michigan_swe = np.clip(15 - np.arange(n_days) * 0.12 + rng.normal(0, 0.4, n_days), 0, None)
+    michigan_swe[40:44] = 9.0  # a synthetic stuck-sensor patch, like the real MichiganCreek.csv one
+    pd.DataFrame({"DATE": dates.strftime("%m/%d/%Y"), "SWE": michigan_swe}).to_csv(
+        data_dir / "MichiganCreek.csv", index=False
+    )
+
     pd.DataFrame(
         {
             "STATION": "USC00058022",
@@ -125,6 +131,8 @@ def test_analyze_parameters_writes_summary(
     assert "lake turnover" in text
     assert "closer predictor" in text
     assert "depth profile" in text
+    assert "classifier: model family comparison" in text
+    assert "Sensor-fault anomaly detection" in text
 
     json_path = results_dir / "predictions.json"
     assert json_path.exists()
@@ -164,6 +172,12 @@ def test_visualize_writes_all_figures(
         "10_transit_animation.gif",
         "11_model_family_comparison.png",
         "12_lag_day_grid_search.png",
+        "13_stratification_timeline.png",
+        "14_depth_profiles.png",
+        "15_storm_profile_comparison.png",
+        "16_sonde_vs_gage_comparison.png",
+        "17_classifier_comparison.png",
+        "18_anomaly_detection.png",
     ]
     for name in expected:
         assert (figures_dir / name).exists(), name

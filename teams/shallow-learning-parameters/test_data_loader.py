@@ -16,6 +16,7 @@ from data_loader import (
     build_dataset,
     engineer_predictor_features,
     feature_columns,
+    load_michigan_creek,
     load_target,
 )
 
@@ -181,6 +182,24 @@ def test_feature_columns_excludes_targets(dataset_dir: Path) -> None:
     assert "TOC_mg_L" not in columns
     assert "Alk_mg_L" not in columns
     assert "turb_flow" in columns
+
+
+def test_load_michigan_creek(tmp_path: Path) -> None:
+    _write_csv(
+        tmp_path / "MichiganCreek.csv",
+        """
+DATE,SWE
+5/11/2026,0
+5/12/2026,9
+5/13/2026,9
+5/14/2026,9
+5/15/2026,9
+5/16/2026,0
+""",
+    )
+    df = load_michigan_creek(tmp_path)
+    assert list(df.columns) == ["SWE"]
+    assert df.loc["2026-05-13", "SWE"] == 9
 
 
 def test_peak_loading_date_finds_highest_turbidity_times_flow(dataset_dir: Path) -> None:

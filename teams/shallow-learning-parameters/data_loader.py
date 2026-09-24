@@ -59,6 +59,15 @@ def load_snowpack(data_dir: Path) -> pd.DataFrame:
     return _read_dated_csv(Path(data_dir) / "HoosierPass.csv", "DATE")
 
 
+def load_michigan_creek(data_dir: Path) -> pd.DataFrame:
+    """SNOTEL snow water equivalent, Michigan Creek station -- the feed
+    Hoosier Pass replaced. Kept for its longer record, but has a known bad
+    patch (SWE 9.0 on 2026-05-12 to 05-15, bracketed by near-zero readings;
+    see AGENTS.md) that makes it a real, labeled test case for anomaly
+    detection rather than a recommended predictor."""
+    return _read_dated_csv(Path(data_dir) / "MichiganCreek.csv", "DATE")
+
+
 def load_weather(data_dir: Path) -> pd.DataFrame:
     """NOAA GHCN daily precipitation, snow, and temperature."""
     return _read_dated_csv(Path(data_dir) / "USC00058022.csv", "DATE")

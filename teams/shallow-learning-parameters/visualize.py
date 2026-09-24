@@ -22,12 +22,15 @@ import pandas as pd
 from data_loader import build_dataset, feature_columns, peak_loading_date
 from models import (
     cluster_hydrologic_regimes,
+    fit_gradient_boosting_importance,
     fit_linear_baseline,
+    fit_logistic_baseline,
     fit_random_forest_importance,
     fit_svr_baseline,
     fit_threshold_classifier,
 )
 from sonde_loader import cast_summary, daily_surface_features, load_sonde_readings
+from visualize_anomaly import plot_anomaly_detection
 from visualize_sonde import (
     plot_depth_profiles,
     plot_sonde_vs_gage_comparison,
@@ -208,26 +211,34 @@ def plot_alkalinity_classifier_curve(df_alk: pd.DataFrame, out_path: Path) -> No
 
 def plot_model_family_comparison(df_toc: pd.DataFrame, df_alk: pd.DataFrame, out_path: Path) -> None:
     """Fig 11 (Scenario 1): held-out R^2 across model families -- linear,
-    random forest, and SVR (deck slide 9: "try different models like
-    support-vector machines")."""
+    random forest, SVR, and gradient boosting (deck slide 9: "try different
+    models like support-vector machines"; gradient boosting because
+    guide.md's own comparison shows Jake's CatBoost beating his random
+    forest, and this catalog otherwise never tested a boosted-tree family)."""
     _, toc_linear_r2 = fit_linear_baseline(df_toc, "turb_flow", "TOC_mg_L")
     toc_rf_r2 = fit_random_forest_importance(df_toc, TOC_FEATURES, "TOC_mg_L").r2
     toc_svr_r2 = fit_svr_baseline(df_toc, TOC_FEATURES, "TOC_mg_L").r2
+    toc_gbr_r2 = fit_gradient_boosting_importance(df_toc, TOC_FEATURES, "TOC_mg_L").r2
 
     alk_rf_r2 = fit_random_forest_importance(df_alk, ALK_FEATURES, "Alk_mg_L").r2
     alk_svr_r2 = fit_svr_baseline(df_alk, ALK_FEATURES, "Alk_mg_L").r2
+    alk_gbr_r2 = fit_gradient_boosting_importance(df_alk, ALK_FEATURES, "Alk_mg_L").r2
 
-    fig, axes = plt.subplots(1, 2, figsize=(9, 4.5))
+    fig, axes = plt.subplots(1, 2, figsize=(9.5, 4.5))
     axes[0].bar(
-        ["Linear\n(turb_flow)", "Random\nforest", "SVR\n(RBF)"],
-        [toc_linear_r2, toc_rf_r2, toc_svr_r2],
-        color=["tab:gray", "tab:purple", "tab:red"],
+        ["Linear\n(turb_flow)", "Random\nforest", "SVR\n(RBF)", "Gradient\nboosting"],
+        [toc_linear_r2, toc_rf_r2, toc_svr_r2, toc_gbr_r2],
+        color=["tab:gray", "tab:purple", "tab:red", "tab:orange"],
     )
     axes[0].set_title("TOC_mg_L")
     axes[0].set_ylabel("held-out R^2")
     axes[0].axhline(0, color="black", linewidth=0.8)
 
-    axes[1].bar(["Random\nforest", "SVR\n(RBF)"], [alk_rf_r2, alk_svr_r2], color=["tab:purple", "tab:red"])
+    axes[1].bar(
+        ["Random\nforest", "SVR\n(RBF)", "Gradient\nboosting"],
+        [alk_rf_r2, alk_svr_r2, alk_gbr_r2],
+        color=["tab:purple", "tab:red", "tab:orange"],
+    )
     axes[1].set_title("Alk_mg_L")
     axes[1].axhline(0, color="black", linewidth=0.8)
 
@@ -235,6 +246,35 @@ def plot_model_family_comparison(df_toc: pd.DataFrame, df_alk: pd.DataFrame, out
     fig.tight_layout()
     fig.savefig(out_path, dpi=140)
     plt.close(fig)
+
+
+def plot_classifier_comparison(df_alk: pd.DataFrame, out_path: Path) -> None:
+    """Fig 17 (Scenario 1): the alkalinity-below-60 classifier, random
+    forest vs. a logistic regression baseline (`LogisticRegression` was
+    imported in models.py but never actually used before this comparison).
+    Same held-out split, precision/recall curves overlaid."""
+    rf_result = fit_threshold_classifier(df_alk, ALK_FEATURES, "Alk_mg_L", threshold=60.0)
+    logistic_result = fit_logistic_baseline(df_alk, ALK_FEATURES, "Alk_mg_L", threshold=60.0)
+
+    fig, ax = plt.subplots(figsize=(6.5, 5))
+    ax.plot(
+        rf_result.recall, rf_result.precision, color="tab:purple",
+        label=f"Random forest (ROC-AUC={rf_result.roc_auc:.2f})",
+    )
+    ax.plot(
+        logistic_result.recall, logistic_result.precision, color="tab:orange",
+        label=f"Logistic regression (ROC-AUC={logistic_result.roc_auc:.2f})",
+    )
+    ax.set_xlabel("recall (share of true lows caught)")
+    ax.set_ylabel("precision (share of low-alarms correct)")
+    ax.set_title("Alkalinity < 60 mg/L: random forest vs. logistic regression")
+    ax.set_xlim(0, 1.02)
+    ax.set_ylim(0, 1.02)
+    ax.legend()
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=140)
+    plt.close(fig)
+
 
 
 def plot_lag_day_grid_search(data_dir: Path, out_path: Path, lag_days_grid: list[int] | None = None) -> None:
@@ -305,7 +345,10 @@ def main() -> None:
         DATA_DIR, sonde_readings, sonde_daily, FIGURES_DIR / "16_sonde_vs_gage_comparison.png"
     )
 
-    print(f"Wrote 15 figures + 1 animation to {FIGURES_DIR}")
+    plot_classifier_comparison(df_alk, FIGURES_DIR / "17_classifier_comparison.png")
+    plot_anomaly_detection(DATA_DIR, FIGURES_DIR / "18_anomaly_detection.png")
+
+    print(f"Wrote 17 figures + 1 animation to {FIGURES_DIR}")
 
 
 if __name__ == "__main__":
