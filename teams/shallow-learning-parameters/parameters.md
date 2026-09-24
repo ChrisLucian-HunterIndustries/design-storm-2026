@@ -114,14 +114,16 @@ Generate with `python visualize.py`; written to `figures/`.
 | `08_lag_correlation_scan.png` | Correlation vs. lag, empirical transit-time fit per predictor/target pair. |
 | `09_storm_event_trace.png` | One real storm traced from the upstream gage to the Foothills lab result. |
 | `10_transit_animation.gif` | Animated cursor sweeping the same storm window across both panels. |
+| `11_model_family_comparison.png` | Held-out R² across linear, random forest, and SVR model families. |
+| `12_lag_day_grid_search.png` | Held-out R² vs. lag_days, same random forest rebuilt at each candidate lag. |
 
-See [`challenge_writeup.md`](challenge_writeup.md) for the per-scenario narrative these figures support, including the transit-time tracing (07-10) built for Scenario 3.
+See [`challenge_writeup.md`](challenge_writeup.md) for the per-scenario narrative these figures support: transit-time tracing (07-10) for Scenario 3, model families and lag sweep (11-12) for Scenario 1. [`viewer.html`](viewer.html) is a small web app (serve with `python3 serve.py` from the repo root) plotting the same predictions interactively, fed by `results/predictions.json`.
 
 ## Running it
 
 ```
 cd teams/shallow-learning-parameters
-python analyze_parameters.py   # writes results/parameter_summary.md
+python analyze_parameters.py   # writes results/parameter_summary.md and results/predictions.json
 python visualize.py            # writes figures/*.png and figures/*.gif
 python -m pytest -q            # unit tests for data_loader.py and models.py
 ```

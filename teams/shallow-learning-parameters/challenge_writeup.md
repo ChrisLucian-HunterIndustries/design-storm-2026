@@ -64,22 +64,102 @@ point — **ROC-AUC = 0.840** on the held-out split:
 
 ![Alkalinity below 60 mg/L classifier precision/recall curve](figures/06_alkalinity_classifier_pr_curve.png)
 
+### Trying other model families and lag-times
+
+The deck's third bullet asks ML enthusiasts to try other model families
+(support-vector machines by name), different lag-times, and feature
+engineering. Both are now implemented, same held-out split and feature
+lists as the random forest results above, so the numbers are directly
+comparable.
+
+**Model family comparison** (`models.fit_svr_baseline`, an `SVR` with an RBF
+kernel on standardized features — SVR is scale-sensitive, unlike the tree
+models, so this pipeline scales first):
+
+![Held-out R^2 across model families](figures/11_model_family_comparison.png)
+
+| target | model | held-out R² |
+|---|---|---:|
+| TOC_mg_L | Linear (turb_flow only) | 0.505 |
+| TOC_mg_L | Random forest | 0.334 |
+| TOC_mg_L | SVR (RBF kernel) | 0.502 |
+| Alk_mg_L | Random forest | 0.234 |
+| Alk_mg_L | SVR (RBF kernel) | 0.423 |
+
+The deck's hunch was right on this split: **SVR beats the random forest for
+both targets**, and very nearly matches the single-feature linear model for
+TOC. That last part is worth sitting with rather than skimming past — a
+10-feature SVR landing within 0.003 R² of a 1-feature straight line through
+`turb_flow` says the extra nine features are adding almost nothing here, for
+either model family. Whether that's a ceiling in what this data can support,
+or a split/hyperparameter artifact (`C=10, epsilon=0.1` were not tuned), is
+an open question this catalog didn't chase further — a `GridSearchCV` over
+SVR's `C`/`epsilon`/`gamma` is a natural next step and, like the deck says,
+"a small, well-isolated extension of the same module."
+
+**Lag-day grid search** (`build_dataset` rebuilt at each candidate lag, same
+random forest refit each time):
+
+![Held-out R^2 vs. lag_days](figures/12_lag_day_grid_search.png)
+
+| lag (days) | TOC_mg_L R² | Alk_mg_L R² |
+|---:|---:|---:|
+| 0 | 0.448 | -0.119 |
+| 1 | 0.426 | -0.019 |
+| 2 | 0.334 | 0.170 |
+| 3 | 0.300 | 0.236 |
+| 4 | 0.358 | 0.234 |
+| 5 | 0.357 | 0.014 |
+| 7 | 0.388 | -0.062 |
+| 10 | 0.534 | -0.416 |
+
+Read this one carefully rather than picking the highest number in the
+column: alkalinity's R² craters to -0.416 at lag=10 and is negative at
+lag=0-1 too, swinging over a 0.65-point range across the grid. `guide.md`
+section 10 already warned that a single 50/50 split's R² "is not a stable
+property of the model" (its own cross-validated TOC forest scored a mean R²
+of -0.66 across time slices) — this grid is the same instability showing up
+along a different axis (lag choice instead of test-slice choice), not new
+evidence that lag=10 is secretly better than lag=4. The one genuinely
+useful read: alkalinity's R² is consistently positive and closely clustered
+(0.17-0.24) only across lag=2-4, which is a real, if narrow, basis for
+Jake's choice of 4. TOC's curve never dips negative anywhere in the grid,
+which is a mildly reassuring sign that the turbidity/flow signal it depends
+on is more robust to the exact lag than alkalinity's conductance signal is.
+
+### A web viewer for "projected TOC and/or alkalinity"
+
+The deck's fourth bullet asks for a web application to view predictions
+alongside the data behind them (streamflow, weather, USGS water quality).
+[`viewer.html`](viewer.html) is a small, hand-maintained static page (no
+build step, matching `design-storm-water-system-3d.html`'s own convention)
+that fetches [`results/predictions.json`](results/predictions.json) —
+exported by `analyze_parameters.export_viewer_json` — and plots, with
+Chart.js:
+
+- **TOC and alkalinity, actual vs. predicted**, the full timeline, with the
+  held-out test predictions drawn in a different color from the in-sample
+  training predictions so a viewer can't mistake training fit for
+  generalization.
+- **Upstream context**: streamflow, turbidity, precipitation, and snowpack,
+  each on their own true (unlagged) dates.
+
+Serve it like the 3D map (it fetches JSON, so opening the file directly
+won't work):
+
+```
+python3 serve.py            # from the repository root
+# open http://localhost:8765/teams/shallow-learning-parameters/viewer
+```
+
 ### What the deck asks for that isn't here
 
-- **Support-vector machines / other model families, lag-time sweeps**: not
-  implemented — this catalog deliberately stayed within "sklearn, favor
-  shallow learning" per its own scope. `models.py.fit_random_forest_importance`
-  and `fit_linear_baseline` are the two model families built; adding an SVR
-  or a lag-day grid search is a small, well-isolated extension of the same
-  module.
 - **Strontia profiling sonde**: `reference/README.md` and
   `data/TERMS.md` describe this instrument (`Strontia 0407_0819.xlsx`,
   16,093 depth readings), but that file is **not present** in this
   workspace's `data/` — only the five national-dataset CSVs are. Nothing
-  here uses it; this is a genuine gap, not an oversight.
-- **Web application**: out of scope for this catalog (`design-storm-water-system-3d.html`
-  already covers the "view everything behind a prediction" idea structurally,
-  see Scenario 3 below, but doesn't yet plot a projected TOC/alkalinity curve).
+  here uses it; this is a genuine gap, not an oversight. Every other bullet
+  in this scenario is now implemented above.
 
 ---
 
@@ -285,7 +365,11 @@ transit."
 ```
 cd teams/shallow-learning-parameters
 pip install -r requirements.txt
-python analyze_parameters.py   # results/parameter_summary.md
-python visualize.py            # figures/*.png (all images above)
-python -m pytest -q            # 15 tests, data_loader.py/models.py at 100% coverage
+python analyze_parameters.py   # results/parameter_summary.md, results/predictions.json
+python visualize.py            # figures/*.png and figures/*.gif (all images above)
+python -m pytest -q            # unit + smoke tests, data_loader.py/models.py at 100% coverage
+
+# then, from the repository root, to view the web viewer:
+python3 serve.py
+# open http://localhost:8765/teams/shallow-learning-parameters/viewer
 ```
