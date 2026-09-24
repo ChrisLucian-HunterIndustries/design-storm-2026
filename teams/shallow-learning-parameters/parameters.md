@@ -117,7 +117,7 @@ Generate with `python visualize.py`; written to `figures/`.
 | `11_model_family_comparison.png` | Held-out R² across linear, random forest, and SVR model families. |
 | `12_lag_day_grid_search.png` | Held-out R² vs. lag_days, same random forest rebuilt at each candidate lag. |
 
-See [`challenge_writeup.md`](challenge_writeup.md) for the per-scenario narrative these figures support: [Scenario 1](scenario1_toc_alkalinity.md) for model families and the lag sweep (11-12), [Scenario 2](scenario2_storm_runoff.md) for the regime clusters (05), [Scenario 3](scenario3_snowpack_system.md) for the year-over-year comparison and transit-time tracing (07-10). [`viewer.html`](viewer.html) is a small web app (serve with `python3 serve.py` from the repo root) plotting the same predictions interactively, fed by `results/predictions.json`.
+See [`challenge_writeups/challenge_writeup.md`](challenge_writeups/challenge_writeup.md) for the per-scenario narrative these figures support: [Scenario 1](challenge_writeups/scenario1_toc_alkalinity.md) for model families and the lag sweep (11-12), [Scenario 2](challenge_writeups/scenario2_storm_runoff.md) for the regime clusters (05), [Scenario 3](challenge_writeups/scenario3_snowpack_system.md) for the year-over-year comparison and transit-time tracing (07-10). [`viewer.html`](viewer.html) is a small web app (serve with `python3 serve.py` from the repo root) plotting the same predictions interactively, fed by `results/predictions.json`.
 
 ## Running it
 

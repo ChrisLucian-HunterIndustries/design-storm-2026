@@ -3,10 +3,10 @@
 Part of the [Design Storm 2026 challenge writeup](challenge_writeup.md) — see
 that file for the shared intro, data terms, and reproduction steps. Quote
 below is transcribed directly from
-[the deck](../../reference/Explore%20DDD%202026%20Denver%20Water%20Design%20Storm%20Presentation.pdf)
+[the deck](../../../reference/Explore%20DDD%202026%20Denver%20Water%20Design%20Storm%20Presentation.pdf)
 (slide 10). Every number is computed by
-[`analyze_parameters.py`](analyze_parameters.py) and lives in
-[`results/parameter_summary.md`](results/parameter_summary.md).
+[`analyze_parameters.py`](../analyze_parameters.py) and lives in
+[`results/parameter_summary.md`](../results/parameter_summary.md).
 
 > Given current watershed and reservoir conditions, how is an incoming storm
 > or runoff event likely to affect source-water quality, when will that
@@ -48,7 +48,7 @@ national datasets do support:
   identifiable from upstream sensor data alone, without ever being told
   which days had a storm.
 
-![Hydrologic-regime clusters from PCA + KMeans](figures/05_hydrologic_regimes.png)
+![Hydrologic-regime clusters from PCA + KMeans](../figures/05_hydrologic_regimes.png)
 
 ## What the deck asks for that isn't here
 

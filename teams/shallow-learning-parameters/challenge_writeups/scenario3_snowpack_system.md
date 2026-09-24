@@ -3,10 +3,10 @@
 Part of the [Design Storm 2026 challenge writeup](challenge_writeup.md) — see
 that file for the shared intro, data terms, and reproduction steps. Quote
 below is transcribed directly from
-[the deck](../../reference/Explore%20DDD%202026%20Denver%20Water%20Design%20Storm%20Presentation.pdf)
+[the deck](../../../reference/Explore%20DDD%202026%20Denver%20Water%20Design%20Storm%20Presentation.pdf)
 (slide 11). Every number is computed by
-[`analyze_parameters.py`](analyze_parameters.py) and lives in
-[`results/parameter_summary.md`](results/parameter_summary.md).
+[`analyze_parameters.py`](../analyze_parameters.py) and lives in
+[`results/parameter_summary.md`](../results/parameter_summary.md).
 
 > Develop an interactive model that visualizes how water and water-quality
 > conditions move from the watershed through the collection system to the
@@ -25,14 +25,14 @@ below is transcribed directly from
 ## Available ML solutions (built here)
 
 The first bullet — an interactive model of the whole system — already
-exists: [`design-storm-water-system-3d.html`](../../design-storm-water-system-3d.html)
+exists: [`design-storm-water-system-3d.html`](../../../design-storm-water-system-3d.html)
 (serve with `python3 serve.py` from the repo root) is Denver Water's own
 worked example for this scenario. This catalog adds the second bullet, which
 that map doesn't cover: a **year-over-year comparison** of Hoosier Pass SWE
 and South Platte flow, both re-indexed to day-of-year so different years
 overlay directly.
 
-![Snowpack and streamflow overlaid by calendar year](figures/07_snowpack_streamflow_by_year.png)
+![Snowpack and streamflow overlaid by calendar year](../figures/07_snowpack_streamflow_by_year.png)
 
 Computed per year (`parameter_summary.md`):
 
@@ -65,7 +65,7 @@ correlates each raw upstream predictor against each target at every lag from
 0 to 10 days and reports where the correlation peaks — an empirical,
 per-predictor transit/mixing time.
 
-![Correlation vs. lag for four predictor/target pairs](figures/08_lag_correlation_scan.png)
+![Correlation vs. lag for four predictor/target pairs](../figures/08_lag_correlation_scan.png)
 
 | predictor | target | best lag (days) | correlation at best lag |
 |---|---|---:|---:|
@@ -97,7 +97,7 @@ turbidity and flow both spike that day, and the Foothills lab result is
 plotted on its own axis below, with the empirically-fit response date
 marked.
 
-![One real storm traced from the upstream gage to the treatment plant](figures/09_storm_event_trace.png)
+![One real storm traced from the upstream gage to the treatment plant](../figures/09_storm_event_trace.png)
 
 Reading it left to right: turbidity and flow rise together and peak
 sharply on 2023-05-12. TOC at the plant is still flat for a few more days,
@@ -114,7 +114,7 @@ unified... animation" of a parameter moving through the system: the same
 storm window, animated as a synchronized cursor sweeping day by day across
 the upstream gage (top) and the Foothills lab result (bottom).
 
-![Animated transit trace: a cursor sweeps the same storm window across both panels](figures/10_transit_animation.gif)
+![Animated transit trace: a cursor sweeps the same storm window across both panels](../figures/10_transit_animation.gif)
 
 This is deliberately *not* an animation of a literal water parcel travelling
 from point A to point B — this data cannot ground that claim (see the

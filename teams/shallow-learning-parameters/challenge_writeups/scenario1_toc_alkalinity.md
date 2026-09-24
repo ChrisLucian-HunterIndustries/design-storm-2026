@@ -3,11 +3,11 @@
 Part of the [Design Storm 2026 challenge writeup](challenge_writeup.md) — see
 that file for the shared intro, data terms, and reproduction steps. Quotes
 below are transcribed directly from
-[the deck](../../reference/Explore%20DDD%202026%20Denver%20Water%20Design%20Storm%20Presentation.pdf)
+[the deck](../../../reference/Explore%20DDD%202026%20Denver%20Water%20Design%20Storm%20Presentation.pdf)
 (slide 9). Every number is computed by
-[`analyze_parameters.py`](analyze_parameters.py) and lives in
-[`results/parameter_summary.md`](results/parameter_summary.md) — see
-[`parameters.md`](parameters.md) for the full column-by-column catalog this
+[`analyze_parameters.py`](../analyze_parameters.py) and lives in
+[`results/parameter_summary.md`](../results/parameter_summary.md) — see
+[`parameters.md`](../parameters.md) for the full column-by-column catalog this
 writeup draws on.
 
 > Can watershed, hydrologic, and reservoir monitoring data provide enough
@@ -30,10 +30,10 @@ writeup draws on.
 ## Available ML solutions (built here)
 
 The first bullet is fully covered with the national datasets already in
-`data/`: [`data_loader.py`](data_loader.py) joins the USGS gage, DWR
+`data/`: [`data_loader.py`](../data_loader.py) joins the USGS gage, DWR
 telemetry, SNOTEL snowpack, and NOAA weather feeds onto the Foothills lab
 results, shifted 2 days (TOC) / 4 days (alkalinity) as Jake's own models do.
-[`models.py`](models.py) fits a **RandomForestRegressor** per target on a
+[`models.py`](../models.py) fits a **RandomForestRegressor** per target on a
 time-ordered (no shuffling, no leakage) split.
 
 - **TOC_mg_L**: held-out R² = 0.334. A single-feature **linear regression**
@@ -42,19 +42,19 @@ time-ordered (no shuffling, no leakage) split.
 - **Alk_mg_L**: held-out R² = 0.234, led by `Specific_Cond_Mean` and
   `pH_Median`.
 
-![TOC and alkalinity over time](figures/01_targets_timeseries.png)
+![TOC and alkalinity over time](../figures/01_targets_timeseries.png)
 
-![Correlation of every engineered predictor with each target](figures/02_correlation_heatmap.png)
+![Correlation of every engineered predictor with each target](../figures/02_correlation_heatmap.png)
 
-![turb_flow vs TOC, with linear fit](figures/03_turb_flow_vs_toc.png)
+![turb_flow vs TOC, with linear fit](../figures/03_turb_flow_vs_toc.png)
 
-![Random forest feature importance, TOC vs alkalinity](figures/04_feature_importance.png)
+![Random forest feature importance, TOC vs alkalinity](../figures/04_feature_importance.png)
 
 The deck's "yes/no" framing (guide.md's alkalinity-below-60 classifier) is
 scored here with a full precision/recall curve instead of one operating
 point — **ROC-AUC = 0.840** on the held-out split:
 
-![Alkalinity below 60 mg/L classifier precision/recall curve](figures/06_alkalinity_classifier_pr_curve.png)
+![Alkalinity below 60 mg/L classifier precision/recall curve](../figures/06_alkalinity_classifier_pr_curve.png)
 
 ## Trying other model families and lag-times
 
@@ -68,7 +68,7 @@ comparable.
 kernel on standardized features — SVR is scale-sensitive, unlike the tree
 models, so this pipeline scales first):
 
-![Held-out R^2 across model families](figures/11_model_family_comparison.png)
+![Held-out R^2 across model families](../figures/11_model_family_comparison.png)
 
 | target | model | held-out R² |
 |---|---|---:|
@@ -92,7 +92,7 @@ SVR's `C`/`epsilon`/`gamma` is a natural next step and, like the deck says,
 **Lag-day grid search** (`build_dataset` rebuilt at each candidate lag, same
 random forest refit each time):
 
-![Held-out R^2 vs. lag_days](figures/12_lag_day_grid_search.png)
+![Held-out R^2 vs. lag_days](../figures/12_lag_day_grid_search.png)
 
 | lag (days) | TOC_mg_L R² | Alk_mg_L R² |
 |---:|---:|---:|
@@ -123,9 +123,9 @@ on is more robust to the exact lag than alkalinity's conductance signal is.
 
 The deck's fourth bullet asks for a web application to view predictions
 alongside the data behind them (streamflow, weather, USGS water quality).
-[`viewer.html`](viewer.html) is a small, hand-maintained static page (no
+[`viewer.html`](../viewer.html) is a small, hand-maintained static page (no
 build step, matching `design-storm-water-system-3d.html`'s own convention)
-that fetches [`results/predictions.json`](results/predictions.json) —
+that fetches [`results/predictions.json`](../results/predictions.json) —
 exported by `analyze_parameters.export_viewer_json` — and plots, with
 Chart.js:
 
