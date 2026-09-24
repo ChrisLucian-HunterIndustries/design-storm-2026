@@ -14,6 +14,7 @@ from dosing_alerts import (
     ALK_ACTIONABLE_MG_L,
     TOC_ACTIONABLE_MG_L,
     build_dosing_alert,
+    score_current_conditions,
 )
 from models import fit_logistic_baseline
 from models_advanced import fit_quantile_regressor
@@ -72,4 +73,32 @@ def build_dosing_alert_section(
         "Each alert date already reflects its target's own lag (2 days TOC, 4 days alkalinity) -- "
         "the model's prediction for that date is built entirely from upstream readings that many "
         "days old, so the date it fires is the lead time itself, not a separate estimate of one.",
+        "",
+        "### Is a dose required right now?\n",
+        "The table above backtests how often each trigger would have fired historically. This "
+        "answers a different question -- refits both models on every historically labeled row, "
+        "then scores only the single most recent day in this dataset using its features alone "
+        "(never its own lab result, even where this snapshot happens to already have one), the "
+        "same way a live upstream feed would be scored before that day's lab result comes back:\n",
+        *_current_dose_lines(df_toc, toc_features, df_alk, alk_features, alert.alkalinity_threshold),
+    ]
+
+
+def _current_dose_lines(
+    df_toc: pd.DataFrame, toc_features: list[str], df_alk: pd.DataFrame, alk_features: list[str], alkalinity_threshold: float
+) -> list[str]:
+    decision = score_current_conditions(
+        df_toc, toc_features, df_alk, alk_features, alkalinity_threshold=alkalinity_threshold
+    )
+    return [
+        "| target | as-of date | predicted value | dose now? |",
+        "|---|---|---:|---|",
+        f"| TOC_mg_L (p90) | {decision.as_of_toc_date.date()} | {_fmt(decision.toc_predicted_p90)} mg/L | "
+        f"{'YES' if decision.toc_dose_now else 'no'} |",
+        f"| Alk_mg_L (P below 60) | {decision.as_of_alkalinity_date.date()} | "
+        f"{_fmt(decision.alkalinity_probability)} | {'YES' if decision.alkalinity_dose_now else 'no'} |",
+        "",
+        f"**Combined verdict: {'dose now' if decision.dose_now else 'no dose required'}** "
+        "as of the most recent date in this snapshot of `data/` -- a live deployment would run this "
+        "same check against a real-time feed instead of a static file's last row.",
     ]

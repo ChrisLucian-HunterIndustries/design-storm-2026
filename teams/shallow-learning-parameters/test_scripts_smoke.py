@@ -140,6 +140,7 @@ def test_analyze_parameters_writes_summary(
     assert "Gaussian Process regression" in text
     assert "SARIMAX" in text
     assert "Chemical-dosing alert calendar" in text
+    assert "Is a dose required right now?" in text
 
     json_path = results_dir / "predictions.json"
     assert json_path.exists()
