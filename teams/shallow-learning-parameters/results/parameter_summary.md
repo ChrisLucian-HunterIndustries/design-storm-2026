@@ -235,3 +235,58 @@ Storm date (peak flow and turbidity in the sonde's window): 2026-07-18.
 |---|---:|---:|---:|---:|
 | before: 2026-07-17 12:06:13 | 0.810 | 294.550 | 14.301 | 19.748 |
 | after: 2026-07-19 00:06:41 | 1.020 | 295.260 | 14.385 | 19.897 |
+
+## Hyperparameter tuning (GridSearchCV over gradient boosting)
+
+| target | untuned R^2 | tuned R^2 | best params |
+|---|---:|---:|---|
+| TOC_mg_L | 0.111 | 0.561 | {'learning_rate': 0.01, 'max_depth': 4, 'n_estimators': 100} |
+| Alk_mg_L | 0.327 | 0.387 | {'learning_rate': 0.01, 'max_depth': 2, 'n_estimators': 300} |
+
+## Flow forecasting (previously an unimplemented idea in parameters.md)
+
+Predicting Flow_CFS 3 days ahead from today's conditions (1599 rows).
+
+| model | held-out R^2 |
+|---|---:|
+| Linear (today's Flow_CFS only) | 0.910 |
+| Random forest (Flow_CFS, roll_flow_7, SWE, roll_swe_7, TMAX, TMIN) | 0.887 |
+
+| feature | importance |
+|---|---:|
+| Flow_CFS | 0.731 |
+| roll_flow_7 | 0.205 |
+| roll_swe_7 | 0.019 |
+| TMIN | 0.017 |
+| TMAX | 0.014 |
+| SWE | 0.013 |
+
+## Quantile / peak-focused regression (guide.md: "catching peaks matters more")
+
+| target | quantile | coverage (actual <= predicted) |
+|---|---:|---:|
+| TOC_mg_L | 0.9 | 0.918 |
+| Alk_mg_L | 0.9 | 0.839 |
+
+## Joint multi-output modeling of TOC_mg_L and Alk_mg_L
+
+Both scored on the same lag_days=2 frame, so alkalinity's independent number here differs from the model family comparison above (which uses alkalinity's own lag_days=4 frame).
+
+| target | independent random-forest R^2 | joint random-forest R^2 |
+|---|---:|---:|
+| TOC_mg_L | 0.334 | 0.569 |
+| Alk_mg_L | 0.170 | -0.055 |
+
+## Gaussian Process regression (uncertainty bands)
+
+| target | held-out R^2 | mean predicted std dev |
+|---|---:|---:|
+| TOC_mg_L | 0.357 | 0.301 |
+| Alk_mg_L | 0.516 | 5.414 |
+
+## SARIMAX (time-series-native, vs. lag-as-feature)
+
+| target | exog | order | held-out R^2 |
+|---|---|---|---:|
+| TOC_mg_L | turb_flow | (1, 0, 1) | 0.270 |
+| Alk_mg_L | Specific_Cond_Mean | (1, 0, 1) | 0.108 |
