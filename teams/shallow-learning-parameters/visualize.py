@@ -30,6 +30,14 @@ from models import (
     fit_threshold_classifier,
 )
 from sonde_loader import cast_summary, daily_surface_features, load_sonde_readings
+from visualize_advanced import (
+    plot_flow_forecast,
+    plot_gaussian_process,
+    plot_multioutput_comparison,
+    plot_quantile_bands,
+    plot_sarimax,
+    plot_tuning_comparison,
+)
 from visualize_anomaly import plot_anomaly_detection
 from visualize_sonde import (
     plot_depth_profiles,
@@ -348,7 +356,16 @@ def main() -> None:
     plot_classifier_comparison(df_alk, FIGURES_DIR / "17_classifier_comparison.png")
     plot_anomaly_detection(DATA_DIR, FIGURES_DIR / "18_anomaly_detection.png")
 
-    print(f"Wrote 17 figures + 1 animation to {FIGURES_DIR}")
+    plot_tuning_comparison(df_toc, TOC_FEATURES, df_alk, ALK_FEATURES, FIGURES_DIR / "19_tuning_comparison.png")
+    plot_flow_forecast(DATA_DIR, FIGURES_DIR / "20_flow_forecast.png")
+    plot_quantile_bands(df_toc, TOC_FEATURES, df_alk, ALK_FEATURES, FIGURES_DIR / "21_quantile_bands.png")
+    plot_multioutput_comparison(
+        df_toc, TOC_FEATURES, ALK_FEATURES, all_features, FIGURES_DIR / "22_multioutput_comparison.png"
+    )
+    plot_gaussian_process(df_toc, TOC_FEATURES, df_alk, ALK_FEATURES, FIGURES_DIR / "23_gaussian_process.png")
+    plot_sarimax(df_toc, df_alk, FIGURES_DIR / "24_sarimax.png")
+
+    print(f"Wrote 23 figures + 1 animation to {FIGURES_DIR}")
 
 
 if __name__ == "__main__":

@@ -184,6 +184,12 @@ def test_visualize_writes_all_figures(
         "16_sonde_vs_gage_comparison.png",
         "17_classifier_comparison.png",
         "18_anomaly_detection.png",
+        "19_tuning_comparison.png",
+        "20_flow_forecast.png",
+        "21_quantile_bands.png",
+        "22_multioutput_comparison.png",
+        "23_gaussian_process.png",
+        "24_sarimax.png",
     ]
     for name in expected:
         assert (figures_dir / name).exists(), name
