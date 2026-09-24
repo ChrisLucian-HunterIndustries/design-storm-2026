@@ -82,6 +82,7 @@ LAG_SCAN_PAIRS = [
 ]
 MAX_LAG_DAYS = 10
 LAG_DAYS_GRID = [0, 1, 2, 3, 4, 5, 7, 10]
+PRECIP_EXTRA_DAYS_GRID = [0, 1, 2, 3, 4, 5, 6, 7]
 
 
 def _fmt(value: float) -> str:
@@ -234,6 +235,41 @@ def _per_source_lag_table(data_dir: Path) -> list[str]:
     lines.append(f"| Alk_mg_L | uniform (lag_days=4 for every source) | {_fmt(uniform_alk)} |")
     lines.append(f"| Alk_mg_L | per-source (Jake's: precip lagged 2 days further) | {_fmt(per_source_alk)} |")
     return lines
+
+
+def _precip_extra_lag_grid_table(data_dir: Path) -> tuple[list[str], int, int]:
+    """A hybrid tuned per target: instead of assuming precip needs 0 extra
+    days (uniform build_dataset) or exactly Jake's fixed +2, scan every
+    candidate `precip_extra_days` for each target's own base lag_days (2 for
+    TOC, 4 for Alk) and pick whichever scores best, independently per
+    target. Same random forest/feature list as the tables above. Returns the
+    table lines plus the winning precip_extra_days for TOC and Alk, so the
+    caller can build a dataset with that hybrid choice."""
+    lines = [
+        "| precip extra days | TOC_mg_L held-out R^2 | Alk_mg_L held-out R^2 |",
+        "|---:|---:|---:|",
+    ]
+    toc_scores: dict[int, float] = {}
+    alk_scores: dict[int, float] = {}
+    for extra in PRECIP_EXTRA_DAYS_GRID:
+        df_toc = build_dataset_per_source_lag(data_dir, lag_days=2, precip_extra_days=extra)
+        df_alk = build_dataset_per_source_lag(data_dir, lag_days=4, precip_extra_days=extra)
+        toc_scores[extra] = fit_random_forest_importance(df_toc, TOC_FEATURES, "TOC_mg_L").r2
+        alk_scores[extra] = fit_random_forest_importance(df_alk, ALK_FEATURES, "Alk_mg_L").r2
+        lines.append(f"| {extra} | {_fmt(toc_scores[extra])} | {_fmt(alk_scores[extra])} |")
+
+    best_toc_extra = max(toc_scores, key=lambda k: toc_scores[k])
+    best_alk_extra = max(alk_scores, key=lambda k: alk_scores[k])
+    lines.append("")
+    lines.append(
+        f"Best precip_extra_days for TOC_mg_L: {best_toc_extra} "
+        f"(R^2={_fmt(toc_scores[best_toc_extra])})"
+    )
+    lines.append(
+        f"Best precip_extra_days for Alk_mg_L: {best_alk_extra} "
+        f"(R^2={_fmt(alk_scores[best_alk_extra])})"
+    )
+    return lines, best_toc_extra, best_alk_extra
 
 
 def _series_to_points(series: pd.Series) -> list[list]:
@@ -398,6 +434,39 @@ def main() -> None:
         "build_dataset does. Same random forest and feature list as the model-family table above.\n"
     )
     lines += _per_source_lag_table(DATA_DIR)
+
+    lines.append(
+        "\n## Hybrid lag: tuning precip's extra lag per target beats both fixed choices\n"
+    )
+    lines.append(
+        "Neither fixed choice above is forced: uniform lag is precip_extra_days=0, Jake's own "
+        "notebooks use precip_extra_days=2 for both targets. Scanning every candidate value "
+        "per target picks whichever wins independently, rather than assuming one number fits "
+        "both. Same random forest and feature list as the tables above; the usual caveat from "
+        "the lag-day grid search applies here too -- a single 50/50-split R^2 is not a fully "
+        "stable property of the model, so treat the winning value as a direction, not a promise.\n"
+    )
+    precip_grid_lines, best_toc_extra, best_alk_extra = _precip_extra_lag_grid_table(DATA_DIR)
+    lines += precip_grid_lines
+    hybrid_toc_r2 = fit_random_forest_importance(
+        build_dataset_per_source_lag(DATA_DIR, lag_days=2, precip_extra_days=best_toc_extra),
+        TOC_FEATURES,
+        "TOC_mg_L",
+    ).r2
+    hybrid_alk_r2 = fit_random_forest_importance(
+        build_dataset_per_source_lag(DATA_DIR, lag_days=4, precip_extra_days=best_alk_extra),
+        ALK_FEATURES,
+        "Alk_mg_L",
+    ).r2
+    lines.append("")
+    lines.append(
+        f"Hybrid (TOC precip_extra_days={best_toc_extra}, Alk precip_extra_days={best_alk_extra}) "
+        f"vs. the two fixed choices:"
+    )
+    lines.append("| target | uniform (extra=0) | Jake's fixed (extra=2) | hybrid (tuned) |")
+    lines.append("|---|---:|---:|---:|")
+    lines.append(f"| TOC_mg_L | 0.334 | 0.599 | {_fmt(hybrid_toc_r2)} |")
+    lines.append(f"| Alk_mg_L | 0.234 | 0.184 | {_fmt(hybrid_alk_r2)} |")
 
     lines.append(
         "\n## Strontia profiling sonde: stratification (Scenario 3: \"lake turnover\")\n"
