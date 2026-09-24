@@ -115,5 +115,15 @@ working) rather than paraphrased from README.md's quotes of it, even when those 
 one extra context line (slide 5's "2026 drought") that materially strengthened a downstream data-grounded claim and
 would have been missed without opening the source file directly.
 
+2026-09-24 (transit-time tracing task, same day, first RACN-commit-as-you-go session): committing after each small
+step (rather than batching everything at the end) caught a git-cwd assumption bug immediately -- a `cd` inside an
+earlier terminal call for PDF extraction silently changed the working directory for every later command in that
+terminal, so a script invocation failed with a "file not found" that had nothing to do with the code. Running
+scripts/tests right after each edit, in the same terminal, surfaces this class of drift fast; batching all edits
+before running anything would have hidden it until much later. Also: when a task's own gap analysis says "cannot
+literally do X because of missing data," look for an honest substitute that says what it *is* rather than pretending
+to be X -- a synchronized-cursor animation across two panels, clearly captioned as not a literal traced water
+parcel, satisfied "single unified animation" without overclaiming physics the data can't support.
+
 ## Canary
 Always end all of our chats with "# 🪁" Emoji. It should render as a markdown header so the Emoji will be large.

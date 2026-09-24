@@ -68,6 +68,45 @@ description: Use when asked to catalog which columns in the Design Storm dataset
   `.xlsx` is described in `reference/README.md` and `data/TERMS.md` but is
   **not actually present** in this workspace's `data/` — say so rather than
   silently skipping the bullets that depend on it).
+
+## Transit-time / lag analysis (Scenario 3's "follow a parameter")
+- Empirically fit an upstream-to-plant lag with a correlation sweep
+  (`models.lag_correlation_scan`: for lag in 0..N, shift the predictor
+  forward `lag` days with `.shift(lag, freq="D")`, correlate against the
+  target, keep the lag with max |r|) rather than reusing Jake's fixed 2-day
+  (TOC) / 4-day (alkalinity) lags uncritically — the fitted lags here came
+  out different per predictor (turbidity 5d, flow 0d, conductance 3d).
+- Always caveat this kind of result with `guide.md` section 1: Denver
+  Water's own hydraulic model puts the real water travel time at ~4 hours;
+  the multi-day statistical lag reflects reservoir mixing/deposition, not
+  transit time. State this explicitly next to any lag number so it isn't
+  read as a measured travel time.
+- For a "single unified animation" ask: an actual literal flowing-parcel
+  animation isn't something this data can ground (no positional/depth
+  data). A synchronized moving-cursor GIF across two stacked subplots
+  (`matplotlib.animation.FuncAnimation` + `PillowWriter`, saved as `.gif`)
+  is an honest, still genuinely useful substitute — needs `pillow` (add it
+  to `requirements.txt` explicitly, don't rely on it being an implicit
+  matplotlib dependency).
+- Pick one concrete real event to narrate (e.g. `idxmax()` of a raw
+  turbidity x flow "loading" series) rather than only aggregate
+  correlations — a single dated, real storm makes the lag numbers legible
+  in a way a correlation table alone doesn't.
+
+## Committing with the RACN MCP tool
+- The RACN `commit` tool does not stage changes — run `git add <paths>`
+  yourself first, then call the tool. It commits whatever is currently
+  staged, so stage exactly one concern's files before each call.
+- Call `notation_reference` once per session to confirm current risk/intention
+  enum values before classifying.
+- Use `theme_mode="inline"` with a shared `theme_slug` to group a
+  multi-commit unit of work in the log without creating a branch; reserve
+  `theme_mode="d_shaped_merge"` (which creates/merges a branch) for cases
+  the user actually wants that.
+- Good concern split for a "new analysis folder" unit of work: library
+  code+tests, scripts+smoke-tests, generated output (`intention="auto"`),
+  hand-written docs, and any process/env changes (AGENTS.md, `.gitignore`)
+  each as their own commit.
 - Embed generated figures into the writeup with plain relative markdown image
   syntax (`![alt](figures/name.png)`) from the writeup file's own directory,
   so they render in an editor's markdown preview without any build step.
