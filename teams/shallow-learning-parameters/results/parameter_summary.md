@@ -146,6 +146,17 @@ Combined alert dates (held-out split): 2024-05-10, 2024-05-11, 2024-05-12, 2024-
 
 Each alert date already reflects its target's own lag (2 days TOC, 4 days alkalinity) -- the model's prediction for that date is built entirely from upstream readings that many days old, so the date it fires is the lead time itself, not a separate estimate of one.
 
+### Is a dose required right now?
+
+The table above backtests how often each trigger would have fired historically. This answers a different question -- refits both models on every historically labeled row, then scores only the single most recent day in this dataset using its features alone (never its own lab result, even where this snapshot happens to already have one), the same way a live upstream feed would be scored before that day's lab result comes back:
+
+| target | as-of date | predicted value | dose now? |
+|---|---|---:|---|
+| TOC_mg_L (p90) | 2026-08-19 | 2.496 mg/L | no |
+| Alk_mg_L (P below 60) | 2026-08-19 | 0.915 | YES |
+
+**Combined verdict: dose now** as of the most recent date in this snapshot of `data/` -- a live deployment would run this same check against a real-time feed instead of a static file's last row.
+
 ## Unsupervised hydrologic-regime clusters (k=3, TOC frame lag_days=2)
 
 | cluster | days | mean TOC_mg_L | mean Alk_mg_L | mean Flow_CFS |
