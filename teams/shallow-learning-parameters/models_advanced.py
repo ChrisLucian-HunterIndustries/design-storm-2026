@@ -185,7 +185,23 @@ def fit_sarimax_baseline(
     with exogenous regressors, instead of via a manually shifted predictor
     column. Time-ordered split; a single fit forecasts the whole held-out
     horizon at once (the normal way to evaluate a SARIMAX model, not a
-    per-row `.predict()` the way sklearn estimators work here)."""
+    per-row `.predict()` the way sklearn estimators work here).
+
+    The real target series has gaps (guide.md section 4: no Jan-Mar rows),
+    so its DatetimeIndex has no fixed frequency -- statsmodels can't build a
+    forecast index from that ("No supported index is available"). Fit on a
+    plain RangeIndex instead and reattach the real dates afterward; this
+    treats consecutive lab results as consecutive time steps regardless of
+    the calendar gap between them, which is a real limitation of this
+    approach worth stating rather than hiding.
+
+    `trend="c"` (a constant/intercept term) matters more than it looks: an
+    AR(1) with no intercept reverts toward *zero*, not toward the series'
+    own mean, so without it every forecast decays toward 0 over a long
+    held-out horizon regardless of how good the AR/exog coefficients are
+    (this was caught empirically -- the first version of this function,
+    without `trend="c"`, scored R^2=-14 on TOC_mg_L because every
+    prediction decayed toward 0 against actual values around 2-6 mg/L)."""
     columns = [target_col, *(exog_cols or [])]
     clean = df.dropna(subset=columns)
     train, test = time_ordered_split(clean)
@@ -194,14 +210,17 @@ def fit_sarimax_baseline(
     exog_test = test[exog_cols] if exog_cols else None
 
     model = SARIMAX(
-        train[target_col],
-        exog=exog_train,
+        train[target_col].reset_index(drop=True),
+        exog=exog_train.reset_index(drop=True) if exog_train is not None else None,
         order=order,
+        trend="c",
         enforce_stationarity=False,
         enforce_invertibility=False,
     )
     fitted = model.fit(disp=False)
-    forecast = fitted.get_forecast(steps=len(test), exog=exog_test)
+    forecast = fitted.get_forecast(
+        steps=len(test), exog=exog_test.reset_index(drop=True) if exog_test is not None else None
+    )
     predictions = pd.Series(forecast.predicted_mean.values, index=test.index)
 
     return SarimaxResult(
