@@ -284,6 +284,36 @@ def plot_classifier_comparison(df_alk: pd.DataFrame, out_path: Path) -> None:
     plt.close(fig)
 
 
+def plot_alkalinity_roc_curve(df_alk: pd.DataFrame, out_path: Path) -> None:
+    """Fig 25 (Scenario 1): the actual ROC curve (true positive rate vs.
+    false positive rate) for the alkalinity-below-60 classifier, random
+    forest vs. logistic regression. Figs 06/17 plot precision/recall with
+    the ROC-AUC number in the title/legend; this is the literal ROC
+    diagram behind that number, including the y=x random-classifier
+    reference line."""
+    rf_result = fit_threshold_classifier(df_alk, ALK_FEATURES, "Alk_mg_L", threshold=60.0)
+    logistic_result = fit_logistic_baseline(df_alk, ALK_FEATURES, "Alk_mg_L", threshold=60.0)
+
+    fig, ax = plt.subplots(figsize=(6.5, 5.5))
+    ax.plot(
+        rf_result.fpr, rf_result.tpr, color="tab:purple",
+        label=f"Random forest (ROC-AUC={rf_result.roc_auc:.3f})",
+    )
+    ax.plot(
+        logistic_result.fpr, logistic_result.tpr, color="tab:orange",
+        label=f"Logistic regression (ROC-AUC={logistic_result.roc_auc:.3f})",
+    )
+    ax.plot([0, 1], [0, 1], color="gray", linestyle="--", linewidth=1, label="Random classifier")
+    ax.set_xlabel("false positive rate")
+    ax.set_ylabel("true positive rate")
+    ax.set_title("Alkalinity < 60 mg/L classifier: ROC curve (held-out split)")
+    ax.set_xlim(0, 1.02)
+    ax.set_ylim(0, 1.02)
+    ax.legend(loc="lower right")
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=140)
+    plt.close(fig)
+
 
 def plot_lag_day_grid_search(data_dir: Path, out_path: Path, lag_days_grid: list[int] | None = None) -> None:
     """Fig 12 (Scenario 1): held-out R^2 vs. lag_days, same random forest and
@@ -364,8 +394,9 @@ def main() -> None:
     )
     plot_gaussian_process(df_toc, TOC_FEATURES, df_alk, ALK_FEATURES, FIGURES_DIR / "23_gaussian_process.png")
     plot_sarimax(df_toc, df_alk, FIGURES_DIR / "24_sarimax.png")
+    plot_alkalinity_roc_curve(df_alk, FIGURES_DIR / "25_alkalinity_roc_curve.png")
 
-    print(f"Wrote 23 figures + 1 animation to {FIGURES_DIR}")
+    print(f"Wrote 24 figures + 1 animation to {FIGURES_DIR}")
 
 
 if __name__ == "__main__":
