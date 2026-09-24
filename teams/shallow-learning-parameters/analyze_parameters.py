@@ -21,6 +21,7 @@ from data_loader import (
     load_target,
     load_usgs_gage,
     load_weather,
+    peak_loading_date,
     with_calendar_year_and_doy,
 )
 from models import (
@@ -33,7 +34,7 @@ from models import (
     lag_correlation_scan,
     predict_full_series,
 )
-from sonde_loader import cast_summary, daily_surface_features, load_sonde_readings
+from sonde_loader import cast_summary, daily_surface_features, full_depth_casts, load_sonde_readings
 
 DATA_DIR = Path(__file__).resolve().parents[2] / "data"
 RESULTS_DIR = Path(__file__).resolve().parent / "results"
@@ -230,25 +231,14 @@ def _sonde_predictor_table(data_dir: Path, sonde_readings: pd.DataFrame, daily_s
     return lines
 
 
-def _select_storm_date_in_window(data_dir: Path, sonde_readings: pd.DataFrame) -> pd.Timestamp:
-    """The peak turbidity x flow ('loading') day within the sonde's own
-    coverage window -- same event-selection idea as
-    visualize.select_storm_event, scoped to whatever period the sonde
-    actually covers (so this adapts to synthetic test data too, not just
-    the real 2026 deployment)."""
-    start = sonde_readings["timestamp"].min().normalize()
-    end = sonde_readings["timestamp"].max().normalize()
-    gage = load_usgs_gage(data_dir).loc[start:end]
-    telemetry = load_dwr_telemetry(data_dir).loc[start:end]
-    loading = (gage["Turbidity_Median"] * telemetry["Flow_CFS"]).dropna()
-    return loading.idxmax()
-
-
 def _storm_profile_table(casts: pd.DataFrame, storm_date: pd.Timestamp) -> list[str]:
-    """Scenario 2's depth-profile bullet: compare the nearest cast before
-    and after a real storm (peak flow AND peak turbidity day within the
-    sonde's window) to see whether the storm's signal reaches every depth or
-    only the surface."""
+    """Scenario 2's depth-profile bullet: compare the nearest full-depth
+    cast before and after a real storm (peak flow AND peak turbidity day
+    within the sonde's window) to see whether the storm's signal reaches
+    every depth or only the surface. Restricted to full-depth casts
+    (`full_depth_casts`) so a short/aborted cast doesn't get compared as if
+    it were a complete water-column profile."""
+    casts = full_depth_casts(casts)
     before = casts[casts["date"] < storm_date].iloc[-1]
     after = casts[casts["date"] > storm_date].iloc[0]
 
@@ -422,7 +412,9 @@ def main() -> None:
         "\n## Storm impact on the reservoir's depth profile (Scenario 2: \"how do water quality "
         "parameters change and distribute by depth\")\n"
     )
-    storm_date = _select_storm_date_in_window(DATA_DIR, sonde_readings)
+    storm_date = peak_loading_date(
+        DATA_DIR, sonde_readings["timestamp"].min().normalize(), sonde_readings["timestamp"].max().normalize()
+    )
     lines += _storm_profile_table(sonde_casts, storm_date)
 
     output_path = RESULTS_DIR / "parameter_summary.md"

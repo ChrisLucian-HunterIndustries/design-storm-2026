@@ -13,6 +13,7 @@ from sonde_loader import (
     assign_cast_ids,
     cast_summary,
     daily_surface_features,
+    full_depth_casts,
     load_sonde_readings,
 )
 
@@ -91,6 +92,13 @@ def test_daily_surface_features_excludes_deep_readings(two_cast_frame: pd.DataFr
     daily = daily_surface_features(two_cast_frame)
     # only the 1m rows (surface) should feed the average, not the 5m/10m rows
     assert daily.iloc[0]["Temp_C"] == pytest.approx((18.0 + 19.0) / 2)
+
+
+def test_full_depth_casts_excludes_short_casts(two_cast_frame: pd.DataFrame) -> None:
+    # both casts in the fixture have 3 readings; a threshold of 5 should drop both
+    summary = cast_summary(two_cast_frame)
+    assert len(full_depth_casts(summary, min_readings=5)) == 0
+    assert len(full_depth_casts(summary, min_readings=3)) == 2
 
 
 def test_load_sonde_readings_renames_and_sorts(tmp_path: Path) -> None:

@@ -100,3 +100,12 @@ def daily_surface_features(df: pd.DataFrame) -> pd.DataFrame:
     )
     daily.index.name = "DATE"
     return daily
+
+
+def full_depth_casts(casts: pd.DataFrame, min_readings: int = 20) -> pd.DataFrame:
+    """Casts with at least `min_readings` depth readings -- excludes short
+    or aborted casts (e.g. a handful of readings down to only a few metres)
+    that would otherwise look like a shallow water column rather than an
+    incomplete one. Use this before comparing profiles across casts."""
+    return casts[casts["n_readings"] >= min_readings]
+

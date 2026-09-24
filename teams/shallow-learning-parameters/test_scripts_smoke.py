@@ -74,7 +74,7 @@ def _write_synthetic_sonde(data_dir: Path, dates: pd.DatetimeIndex, rng: np.rand
     """One cast per day, five depths each, surface warmer than bottom --
     enough for cast_summary/daily_surface_features and a storm before/after
     comparison anywhere in the date range."""
-    depths = [1.0, 5.0, 10.0, 20.0, 40.0]
+    depths = [round(d, 2) for d in np.linspace(1.0, 40.0, 24)]
     rows = []
     for day in dates:
         surface_temp = rng.uniform(10, 20)

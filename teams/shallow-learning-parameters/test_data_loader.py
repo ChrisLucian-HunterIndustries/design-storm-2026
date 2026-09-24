@@ -183,6 +183,16 @@ def test_feature_columns_excludes_targets(dataset_dir: Path) -> None:
     assert "turb_flow" in columns
 
 
+def test_peak_loading_date_finds_highest_turbidity_times_flow(dataset_dir: Path) -> None:
+    from data_loader import peak_loading_date
+
+    # fixture has turbidity and flow both rising monotonically day over day,
+    # so the loading peak is the last day in the window.
+    assert peak_loading_date(dataset_dir, "2024-01-01", "2024-01-10") == pd.Timestamp("2024-01-10")
+    # restricting the window moves the peak to its new last day
+    assert peak_loading_date(dataset_dir, "2024-01-01", "2024-01-05") == pd.Timestamp("2024-01-05")
+
+
 def test_with_calendar_year_and_doy(dataset_dir: Path) -> None:
     from data_loader import with_calendar_year_and_doy
 

@@ -125,3 +125,14 @@ def with_calendar_year_and_doy(df: pd.DataFrame) -> pd.DataFrame:
     out["year"] = out.index.year
     out["day_of_year"] = out.index.dayofyear
     return out
+
+
+def peak_loading_date(data_dir: Path, start, end) -> pd.Timestamp:
+    """The date with the highest turbidity x flow ("loading") within
+    [start, end] -- a simple, real way to pick "the storm" in a given
+    window. Shared by the whole-record transit-time trace and any
+    sonde-window analysis, so both pick "the storm" the same way."""
+    gage = load_usgs_gage(data_dir).loc[start:end]
+    telemetry = load_dwr_telemetry(data_dir).loc[start:end]
+    loading = (gage["Turbidity_Median"] * telemetry["Flow_CFS"]).dropna()
+    return loading.idxmax()
