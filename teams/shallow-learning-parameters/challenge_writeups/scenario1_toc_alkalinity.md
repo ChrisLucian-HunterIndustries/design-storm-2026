@@ -190,6 +190,12 @@ build one on top of models already above, no new model family required:
 | TOC predicted p90 ≥ 3 mg/L | 90 | 429 | 2 |
 | Combined (either trigger) | 277 | 471 | n/a (union) |
 
+> **Actionable information:** an alkalinity alert gives an operator **4 days**
+> of lead time before the low reading reaches Foothills; a TOC alert gives
+> **2 days**. Both numbers come directly from the lag already baked into that
+> target's features (guide.md section 8) — the calendar date an alert fires
+> on *is* the lead time, not a separate figure to look up.
+
 ![Chemical-dosing alert calendar](../figures/26_dosing_alert_timeline.png)
 
 The TOC panel is the cleaner result: 90 alert days, visibly clustered around
@@ -207,6 +213,41 @@ instruction, consistent with `guide.md`'s own "not yet something an operator
 should trust" verdict on this classifier. A narrower `min_recall` (e.g. 0.6)
 would raise precision at the cost of missing more real low days — a real
 operational tradeoff this calendar makes explicit rather than picking for you.
+
+### Is a dose required *right now*, not just historically?
+
+Everything above backtests: it answers "how often would this trigger have
+fired across our test history," scored on one fixed held-out split. That is
+not the same question as "should we dose today," and answering the second
+question needs a different code path, not just a re-read of the same table —
+[`dosing_alerts.score_current_conditions`](../dosing_alerts.py) is that path.
+It refits both models on **every** historically labeled row (a live decision
+should use all the history available; the held-out split's only job was to
+validate the approach honestly, which the backtest above already did), then
+scores **only the single most recent day**, using its feature columns alone —
+deliberately never reading that day's own lab result, even in cases (like this
+static `data/` snapshot) where one already happens to exist, since in a real
+deployment that value genuinely wouldn't be back from the lab yet.
+
+Run against the real data, the most recent day available (`data/`'s last date,
+2026-08-19) scores:
+
+| target | predicted value | dose now? |
+|---|---:|---|
+| TOC_mg_L (predicted p90) | 2.496 mg/L | no (below the 3 mg/L actionable level) |
+| Alk_mg_L (P below 60 mg/L) | 0.915 | **YES** (far above the 0.216 recall-tuned cutoff) |
+
+**Combined verdict: dose now**, driven entirely by the alkalinity trigger —
+consistent with the honest caveat above that this recall-tuned classifier
+fires often (54% of held-out days). One important limitation this exposes:
+`data/` is a static, already-collected snapshot where every source (lab
+results, gage, telemetry) happens to end on the same date, so there is no
+day in this specific file where the lab genuinely hasn't caught up yet — the
+mechanism is demonstrated here on the file's last row as a stand-in for
+"today," not on a real live gap. A production deployment would feed this
+same function real-time upstream telemetry (already lagged 2/4 days, same as
+everywhere else in this catalog) instead of a static CSV's tail, and the
+"dose now?" column is exactly what would drive an operator alert.
 
 ## A web viewer for "projected TOC and/or alkalinity"
 

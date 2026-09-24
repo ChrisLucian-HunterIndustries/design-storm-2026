@@ -211,10 +211,20 @@ predicted band crossing 3 mg/L (Jake's own sample-weight cutoff), which
 catches peaks directly instead of via a mean-fit model. Both lags are already
 baked into the features, so the date an alert fires is itself the lead time
 (2 days for TOC, 4 for alkalinity) — no separate lead-time estimate needed.
+
+> **Actionable information:** treat an alkalinity alert as **4 days** of
+> lead time and a TOC alert as **2 days** — the alert date itself already
+> is the lead time.
+
 See [`figures/26_dosing_alert_timeline.png`](figures/26_dosing_alert_timeline.png)
 and [Scenario 1](challenge_writeups/scenario1_toc_alkalinity.md) for the full
 numbers and the honest caveat on alkalinity's trigger (recall-tuning it this
 aggressively means it fires on 250 of 459 held-out days, more than half).
+That table backtests; `dosing_alerts.score_current_conditions` answers the
+different, live question ("dose *right now*?") by refitting on all labeled
+history and scoring only the most recent day — real answer as of `data/`'s
+last date (2026-08-19): TOC predicted p90 = 2.496 mg/L (no), alkalinity P(below
+60) = 0.915 (**yes**), combined verdict **dose now**.
 
 **Unsupervised hydrologic-regime clusters** (KMeans, k=3, on every engineered
 feature, TOC-frame lag): one small cluster of 36 days stands out with mean
