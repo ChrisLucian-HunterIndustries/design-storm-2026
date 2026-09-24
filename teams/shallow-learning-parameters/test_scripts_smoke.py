@@ -130,6 +130,8 @@ def test_visualize_writes_all_figures(
         "08_lag_correlation_scan.png",
         "09_storm_event_trace.png",
         "10_transit_animation.gif",
+        "11_model_family_comparison.png",
+        "12_lag_day_grid_search.png",
     ]
     for name in expected:
         assert (figures_dir / name).exists(), name

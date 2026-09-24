@@ -30,6 +30,7 @@ from models import (
     cluster_hydrologic_regimes,
     fit_linear_baseline,
     fit_random_forest_importance,
+    fit_svr_baseline,
     fit_threshold_classifier,
     lag_correlation_scan,
 )
@@ -376,6 +377,66 @@ def plot_transit_animation(event: StormEvent, out_path: Path) -> None:
     plt.close(fig)
 
 
+def plot_model_family_comparison(df_toc: pd.DataFrame, df_alk: pd.DataFrame, out_path: Path) -> None:
+    """Fig 11 (Scenario 1): held-out R^2 across model families -- linear,
+    random forest, and SVR (deck slide 9: "try different models like
+    support-vector machines")."""
+    _, toc_linear_r2 = fit_linear_baseline(df_toc, "turb_flow", "TOC_mg_L")
+    toc_rf_r2 = fit_random_forest_importance(df_toc, TOC_FEATURES, "TOC_mg_L").r2
+    toc_svr_r2 = fit_svr_baseline(df_toc, TOC_FEATURES, "TOC_mg_L").r2
+
+    alk_rf_r2 = fit_random_forest_importance(df_alk, ALK_FEATURES, "Alk_mg_L").r2
+    alk_svr_r2 = fit_svr_baseline(df_alk, ALK_FEATURES, "Alk_mg_L").r2
+
+    fig, axes = plt.subplots(1, 2, figsize=(9, 4.5))
+    axes[0].bar(
+        ["Linear\n(turb_flow)", "Random\nforest", "SVR\n(RBF)"],
+        [toc_linear_r2, toc_rf_r2, toc_svr_r2],
+        color=["tab:gray", "tab:purple", "tab:red"],
+    )
+    axes[0].set_title("TOC_mg_L")
+    axes[0].set_ylabel("held-out R^2")
+    axes[0].axhline(0, color="black", linewidth=0.8)
+
+    axes[1].bar(["Random\nforest", "SVR\n(RBF)"], [alk_rf_r2, alk_svr_r2], color=["tab:purple", "tab:red"])
+    axes[1].set_title("Alk_mg_L")
+    axes[1].axhline(0, color="black", linewidth=0.8)
+
+    fig.suptitle("Model family comparison (held-out R^2, same split/features)")
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=140)
+    plt.close(fig)
+
+
+def plot_lag_day_grid_search(data_dir: Path, out_path: Path, lag_days_grid: list[int] | None = None) -> None:
+    """Fig 12 (Scenario 1): held-out R^2 vs. lag_days, same random forest and
+    feature list rebuilt at each lag (deck slide 9: "try different...
+    lag-times")."""
+    if lag_days_grid is None:
+        lag_days_grid = [0, 1, 2, 3, 4, 5, 7, 10]
+
+    toc_scores = []
+    alk_scores = []
+    for lag in lag_days_grid:
+        df = build_dataset(data_dir, lag_days=lag)
+        toc_scores.append(fit_random_forest_importance(df, TOC_FEATURES, "TOC_mg_L").r2)
+        alk_scores.append(fit_random_forest_importance(df, ALK_FEATURES, "Alk_mg_L").r2)
+
+    fig, ax = plt.subplots(figsize=(8, 4.5))
+    ax.plot(lag_days_grid, toc_scores, marker="o", color="tab:green", label="TOC_mg_L")
+    ax.plot(lag_days_grid, alk_scores, marker="o", color="tab:blue", label="Alk_mg_L")
+    ax.axvline(2, color="tab:green", linestyle=":", alpha=0.5)
+    ax.axvline(4, color="tab:blue", linestyle=":", alpha=0.5)
+    ax.axhline(0, color="black", linewidth=0.8)
+    ax.set_xlabel("lag_days used to shift every predictor")
+    ax.set_ylabel("held-out R^2 (random forest)")
+    ax.set_title("Lag-day grid search (dotted lines: lags used elsewhere in this catalog)")
+    ax.legend()
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=140)
+    plt.close(fig)
+
+
 def main() -> None:
     FIGURES_DIR.mkdir(exist_ok=True)
     df_toc = build_dataset(DATA_DIR, lag_days=2)
@@ -395,7 +456,10 @@ def main() -> None:
     plot_transit_event_trace(event, FIGURES_DIR / "09_storm_event_trace.png")
     plot_transit_animation(event, FIGURES_DIR / "10_transit_animation.gif")
 
-    print(f"Wrote 9 figures + 1 animation to {FIGURES_DIR}")
+    plot_model_family_comparison(df_toc, df_alk, FIGURES_DIR / "11_model_family_comparison.png")
+    plot_lag_day_grid_search(DATA_DIR, FIGURES_DIR / "12_lag_day_grid_search.png")
+
+    print(f"Wrote 11 figures + 1 animation to {FIGURES_DIR}")
 
 
 if __name__ == "__main__":
