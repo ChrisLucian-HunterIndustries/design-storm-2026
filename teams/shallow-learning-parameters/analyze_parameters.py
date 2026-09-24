@@ -8,6 +8,7 @@ invent numbers").
 """
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pandas as pd
@@ -19,6 +20,7 @@ from data_loader import (
     load_snowpack,
     load_target,
     load_usgs_gage,
+    load_weather,
     with_calendar_year_and_doy,
 )
 from models import (
@@ -26,8 +28,10 @@ from models import (
     cluster_hydrologic_regimes,
     fit_linear_baseline,
     fit_random_forest_importance,
+    fit_svr_baseline,
     fit_threshold_classifier,
     lag_correlation_scan,
+    predict_full_series,
 )
 
 DATA_DIR = Path(__file__).resolve().parents[2] / "data"
@@ -64,6 +68,7 @@ LAG_SCAN_PAIRS = [
     ("pH_Median", "Alk_mg_L"),
 ]
 MAX_LAG_DAYS = 10
+LAG_DAYS_GRID = [0, 1, 2, 3, 4, 5, 7, 10]
 
 
 def _fmt(value: float) -> str:
@@ -134,6 +139,92 @@ def _lag_scan_table(data_dir: Path) -> list[str]:
         lag = best_lag(scan)
         lines.append(f"| {predictor_name} | {target_name} | {lag} | {_fmt(scan[lag])} |")
     return lines
+
+
+def _model_family_table(df_toc: pd.DataFrame, df_alk: pd.DataFrame) -> list[str]:
+    """Deck slide 9: "try different models (like support-vector machines)...
+    to see if they can improve performance." Same held-out split, same
+    feature lists, three model families side by side."""
+    lines = ["| target | model | held-out R^2 |", "|---|---|---:|"]
+
+    _, toc_linear_r2 = fit_linear_baseline(df_toc, "turb_flow", "TOC_mg_L")
+    toc_rf_r2 = fit_random_forest_importance(df_toc, TOC_FEATURES, "TOC_mg_L").r2
+    toc_svr_r2 = fit_svr_baseline(df_toc, TOC_FEATURES, "TOC_mg_L").r2
+    lines.append(f"| TOC_mg_L | Linear (turb_flow only) | {_fmt(toc_linear_r2)} |")
+    lines.append(f"| TOC_mg_L | Random forest | {_fmt(toc_rf_r2)} |")
+    lines.append(f"| TOC_mg_L | SVR (RBF kernel, scaled features) | {_fmt(toc_svr_r2)} |")
+
+    alk_rf_r2 = fit_random_forest_importance(df_alk, ALK_FEATURES, "Alk_mg_L").r2
+    alk_svr_r2 = fit_svr_baseline(df_alk, ALK_FEATURES, "Alk_mg_L").r2
+    lines.append(f"| Alk_mg_L | Random forest | {_fmt(alk_rf_r2)} |")
+    lines.append(f"| Alk_mg_L | SVR (RBF kernel, scaled features) | {_fmt(alk_svr_r2)} |")
+    return lines
+
+
+def _lag_day_grid_search_table(data_dir: Path) -> list[str]:
+    """Deck slide 9: "try different... lag-times... to see if they can
+    improve performance." Rebuilds the whole dataset at each candidate lag
+    (this also re-times the `turb_flow` engineered feature) and refits the
+    same random forest used in the main results table above."""
+    lines = ["| lag (days) | TOC_mg_L held-out R^2 | Alk_mg_L held-out R^2 |", "|---:|---:|---:|"]
+    for lag in LAG_DAYS_GRID:
+        df = build_dataset(data_dir, lag_days=lag)
+        toc_r2 = fit_random_forest_importance(df, TOC_FEATURES, "TOC_mg_L").r2
+        alk_r2 = fit_random_forest_importance(df, ALK_FEATURES, "Alk_mg_L").r2
+        lines.append(f"| {lag} | {_fmt(toc_r2)} | {_fmt(alk_r2)} |")
+    return lines
+
+
+def _series_to_points(series: pd.Series) -> list[list]:
+    """A pandas Series (DatetimeIndex -> float) as [["YYYY-MM-DD", value], ...]
+    JSON, for viewer.html's Chart.js time-scale line charts."""
+    return [
+        [index.strftime("%Y-%m-%d"), None if pd.isna(value) else float(value)]
+        for index, value in series.items()
+    ]
+
+
+def export_viewer_json(
+    data_dir: Path, df_toc: pd.DataFrame, df_alk: pd.DataFrame, results_dir: Path
+) -> Path:
+    """Write results/predictions.json: actual vs. predicted TOC/alkalinity
+    (train and held-out test clearly separated) plus the raw context series
+    -- streamflow, turbidity, precipitation, snowpack -- viewer.html plots.
+    This is the deck's Scenario 1 web-app bullet: "viewing all the relevant
+    data for predictions... and projected TOC and/or alkalinity."""
+    toc_pred = predict_full_series(df_toc, TOC_FEATURES, "TOC_mg_L")
+    alk_pred = predict_full_series(df_alk, ALK_FEATURES, "Alk_mg_L")
+
+    def target_payload(result, lag_days: int) -> dict:
+        frame = result.frame
+        return {
+            "lag_days": lag_days,
+            "test_r2": result.test_r2,
+            "actual": _series_to_points(frame["actual"]),
+            "predicted_train": _series_to_points(frame.loc[frame["split"] == "train", "predicted"]),
+            "predicted_test": _series_to_points(frame.loc[frame["split"] == "test", "predicted"]),
+        }
+
+    gage = load_usgs_gage(data_dir)
+    telemetry = load_dwr_telemetry(data_dir)
+    weather = load_weather(data_dir)
+    snow = load_snowpack(data_dir)
+
+    payload = {
+        "generated_at": pd.Timestamp.now(tz="UTC").isoformat(),
+        "toc": target_payload(toc_pred, lag_days=2),
+        "alk": target_payload(alk_pred, lag_days=4),
+        "context": {
+            "Flow_CFS": _series_to_points(telemetry["Flow_CFS"]),
+            "Turbidity_Median": _series_to_points(gage["Turbidity_Median"]),
+            "PRCP": _series_to_points(weather["PRCP"]),
+            "SWE": _series_to_points(snow["SWE"]),
+        },
+    }
+
+    out_path = results_dir / "predictions.json"
+    out_path.write_text(json.dumps(payload), encoding="utf-8")
+    return out_path
 
 
 def main() -> None:
@@ -208,9 +299,27 @@ def main() -> None:
     )
     lines += _lag_scan_table(DATA_DIR)
 
+    lines.append(
+        "\n## Model family comparison (Scenario 1: \"try different models like support-vector machines\")\n"
+    )
+    lines += _model_family_table(df_toc, df_alk)
+
+    lines.append(
+        "\n## Lag-day grid search (Scenario 1: \"try different... lag-times\")\n"
+    )
+    lines.append(
+        "Same random forest and feature list as above, refit at each candidate lag. "
+        "Elsewhere in this document TOC uses lag_days=2 and Alk_mg_L uses lag_days=4 "
+        "(guide.md section 14); compare those rows below against the rest of the grid.\n"
+    )
+    lines += _lag_day_grid_search_table(DATA_DIR)
+
     output_path = RESULTS_DIR / "parameter_summary.md"
     output_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"Wrote {output_path}")
+
+    json_path = export_viewer_json(DATA_DIR, df_toc, df_alk, RESULTS_DIR)
+    print(f"Wrote {json_path}")
 
 
 if __name__ == "__main__":

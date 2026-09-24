@@ -4,6 +4,7 @@ without depending on the real (large, external) data/ directory.
 """
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import numpy as np
@@ -90,6 +91,23 @@ def test_analyze_parameters_writes_summary(
     assert "Random forest, held-out R^2" in text
     assert "Unsupervised hydrologic-regime clusters" in text
     assert "Empirical transit-time lag scan" in text
+    assert "Model family comparison" in text
+    assert "Lag-day grid search" in text
+
+    json_path = results_dir / "predictions.json"
+    assert json_path.exists()
+    payload = json.loads(json_path.read_text(encoding="utf-8"))
+    assert set(payload.keys()) == {"generated_at", "toc", "alk", "context"}
+    for target_key in ("toc", "alk"):
+        assert set(payload[target_key].keys()) == {
+            "lag_days",
+            "test_r2",
+            "actual",
+            "predicted_train",
+            "predicted_test",
+        }
+        assert len(payload[target_key]["actual"]) > 0
+    assert set(payload["context"].keys()) == {"Flow_CFS", "Turbidity_Median", "PRCP", "SWE"}
 
 
 def test_visualize_writes_all_figures(
