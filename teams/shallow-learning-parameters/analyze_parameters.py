@@ -23,6 +23,7 @@ from analyze_sonde import (
 )
 from data_loader import (
     build_dataset,
+    build_dataset_per_source_lag,
     feature_columns,
     load_dwr_telemetry,
     load_snowpack,
@@ -208,6 +209,33 @@ def _lag_day_grid_search_table(data_dir: Path) -> list[str]:
     return lines
 
 
+def _per_source_lag_table(data_dir: Path) -> list[str]:
+    """Jake's own notebooks (scripts/TOC_SoftSensor.ipynb,
+    scripts/Alkalinity_Soft_Sensor.ipynb) lag NOAA precip 2 days longer than
+    the other sources (data_loader.build_dataset_per_source_lag). Compares
+    that per-source approach against this catalog's uniform-lag build_dataset,
+    same random forest and feature list, to answer whether Jake's approach
+    actually scores better than a flat 2/4-day lag."""
+    lines = ["| target | lag approach | held-out R^2 |", "|---|---|---:|"]
+    uniform_toc = fit_random_forest_importance(
+        build_dataset(data_dir, lag_days=2), TOC_FEATURES, "TOC_mg_L"
+    ).r2
+    per_source_toc = fit_random_forest_importance(
+        build_dataset_per_source_lag(data_dir, lag_days=2), TOC_FEATURES, "TOC_mg_L"
+    ).r2
+    uniform_alk = fit_random_forest_importance(
+        build_dataset(data_dir, lag_days=4), ALK_FEATURES, "Alk_mg_L"
+    ).r2
+    per_source_alk = fit_random_forest_importance(
+        build_dataset_per_source_lag(data_dir, lag_days=4), ALK_FEATURES, "Alk_mg_L"
+    ).r2
+    lines.append(f"| TOC_mg_L | uniform (lag_days=2 for every source) | {_fmt(uniform_toc)} |")
+    lines.append(f"| TOC_mg_L | per-source (Jake's: precip lagged 2 days further) | {_fmt(per_source_toc)} |")
+    lines.append(f"| Alk_mg_L | uniform (lag_days=4 for every source) | {_fmt(uniform_alk)} |")
+    lines.append(f"| Alk_mg_L | per-source (Jake's: precip lagged 2 days further) | {_fmt(per_source_alk)} |")
+    return lines
+
+
 def _series_to_points(series: pd.Series) -> list[list]:
     """A pandas Series (DatetimeIndex -> float) as [["YYYY-MM-DD", value], ...]
     JSON, for viewer.html's Chart.js time-scale line charts."""
@@ -359,6 +387,17 @@ def main() -> None:
         "(guide.md section 14); compare those rows below against the rest of the grid.\n"
     )
     lines += _lag_day_grid_search_table(DATA_DIR)
+
+    lines.append(
+        "\n## Per-source lag: does Jake's approach beat a flat 2/4-day lag?\n"
+    )
+    lines.append(
+        "Jake's original notebooks lag NOAA precip 2 days further than the gage/DWR/SNOTEL "
+        "sources (4 vs. 2 for TOC, 6 vs. 4 for alkalinity) to cover NOAA's own reporting delay, "
+        "rather than shifting every predictor by one uniform number the way this catalog's own "
+        "build_dataset does. Same random forest and feature list as the model-family table above.\n"
+    )
+    lines += _per_source_lag_table(DATA_DIR)
 
     lines.append(
         "\n## Strontia profiling sonde: stratification (Scenario 3: \"lake turnover\")\n"

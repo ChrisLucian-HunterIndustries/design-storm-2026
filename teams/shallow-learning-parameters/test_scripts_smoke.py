@@ -128,6 +128,7 @@ def test_analyze_parameters_writes_summary(
     assert "Empirical transit-time lag scan" in text
     assert "Model family comparison" in text
     assert "Lag-day grid search" in text
+    assert "Per-source lag: does Jake's approach beat a flat 2/4-day lag?" in text
     assert "lake turnover" in text
     assert "closer predictor" in text
     assert "depth profile" in text
