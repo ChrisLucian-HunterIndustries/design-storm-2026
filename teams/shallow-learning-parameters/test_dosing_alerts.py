@@ -13,6 +13,7 @@ from dosing_alerts import (
     alkalinity_alert_dates,
     build_dosing_alert,
     recall_tuned_threshold,
+    score_current_conditions,
     toc_alert_dates,
 )
 from models import fit_logistic_baseline
@@ -100,3 +101,51 @@ def test_build_dosing_alert_combines_both_targets(
             >= dosing_alert.alkalinity_alert).all()
     assert (dosing_alert.combined_alert.reindex(dosing_alert.toc_alert.index, fill_value=False)
             >= dosing_alert.toc_alert).all()
+
+
+def _append_row(frame: pd.DataFrame, driver: float, other: float, target: float) -> pd.DataFrame:
+    """One more day appended after the fixture's last date, with an
+    explicit driver value so the "current" row's prediction is controllable
+    -- `target` is included only so the appended row has the same columns;
+    `score_current_conditions` must not read it."""
+    next_date = frame.index.max() + pd.Timedelta(days=1)
+    extra = pd.DataFrame({"driver": [driver], "other": [other], "target": [target]}, index=[next_date])
+    return pd.concat([frame, extra])
+
+
+def test_score_current_conditions_flags_a_spike_day(
+    alkalinity_frame: pd.DataFrame, toc_frame: pd.DataFrame
+) -> None:
+    # driver=10 -> alkalinity target ~40 (low); driver=10 -> TOC target ~3.0 (high)
+    spiking_alk = _append_row(alkalinity_frame, driver=10.0, other=0.0, target=np.nan)
+    spiking_toc = _append_row(toc_frame, driver=10.0, other=0.0, target=np.nan)
+
+    decision = score_current_conditions(
+        spiking_toc, ["driver", "other"], spiking_alk, ["driver", "other"],
+        alkalinity_threshold=0.5, toc_actionable_level=2.0,
+        toc_target_col="target", alk_target_col="target",
+    )
+
+    assert decision.as_of_toc_date == spiking_toc.index.max()
+    assert decision.as_of_alkalinity_date == spiking_alk.index.max()
+    assert decision.toc_dose_now
+    assert decision.alkalinity_dose_now
+    assert decision.dose_now
+
+
+def test_score_current_conditions_does_not_flag_a_calm_day(
+    alkalinity_frame: pd.DataFrame, toc_frame: pd.DataFrame
+) -> None:
+    # driver=0 -> alkalinity target ~80 (well above 60); driver=0 -> TOC target ~0 (well below 2.0)
+    calm_alk = _append_row(alkalinity_frame, driver=0.0, other=0.0, target=np.nan)
+    calm_toc = _append_row(toc_frame, driver=0.0, other=0.0, target=np.nan)
+
+    decision = score_current_conditions(
+        calm_toc, ["driver", "other"], calm_alk, ["driver", "other"],
+        alkalinity_threshold=0.5, toc_actionable_level=2.0,
+        toc_target_col="target", alk_target_col="target",
+    )
+
+    assert not decision.toc_dose_now
+    assert not decision.alkalinity_dose_now
+    assert not decision.dose_now

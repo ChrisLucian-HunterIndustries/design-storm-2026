@@ -18,6 +18,11 @@ Both targets already carry a lag baked into their features (2 days TOC, 4
 days alkalinity, guide.md section 8), so the date an alert fires already
 carries that many days of lead time before the predicted value arrives at
 Foothills -- no separate lead-time calculation is needed.
+
+`build_dosing_alert` answers "how often would this have fired historically"
+(a backtest over one held-out split). `score_current_conditions` answers a
+different question -- "is a dose required right now" -- by refitting each
+model on every labeled row and scoring only the single most recent day.
 """
 from __future__ import annotations
 
@@ -25,8 +30,12 @@ from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
+from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.linear_model import LogisticRegression
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
 
-from models import ThresholdClassifierResult
+from models import RANDOM_STATE, ThresholdClassifierResult
 from models_advanced import QuantileResult
 
 TOC_ACTIONABLE_MG_L = 3.0  # guide.md section 9: Jake's own "above 3 mg/L" sample-weight cutoff
@@ -103,4 +112,73 @@ def build_dosing_alert(
         toc_predicted_p90=toc_quantile.predictions,
         combined_alert=combined_alert,
         lead_time_days=lead_time_days,
+    )
+
+
+@dataclass
+class CurrentDoseDecision:
+    as_of_toc_date: pd.Timestamp
+    toc_predicted_p90: float
+    toc_dose_now: bool
+    as_of_alkalinity_date: pd.Timestamp
+    alkalinity_probability: float
+    alkalinity_dose_now: bool
+    dose_now: bool
+
+
+def score_current_conditions(
+    df_toc: pd.DataFrame,
+    toc_features: list[str],
+    df_alk: pd.DataFrame,
+    alk_features: list[str],
+    alkalinity_threshold: float,
+    toc_actionable_level: float = TOC_ACTIONABLE_MG_L,
+    alkalinity_actionable_level: float = ALK_ACTIONABLE_MG_L,
+    toc_target_col: str = "TOC_mg_L",
+    alk_target_col: str = "Alk_mg_L",
+) -> CurrentDoseDecision:
+    """Answers "is a dose required right now", not "how often would this have
+    fired historically" (that's `build_dosing_alert` above, scored on one
+    held-out backtest split). The distinction matters: the alert calendar's
+    numbers describe a fixed past test window, while this function scores
+    only the single most recent day available, refitting each model on
+    every historically labeled row first -- a live decision should use all
+    the history on hand, since the held-out split's only job was to validate
+    the approach honestly, which the backtest above already did.
+
+    The most recent row's own target value (if this particular snapshot
+    happens to have one) is never read here, only its feature columns --
+    this deliberately reproduces what a live deployment would do against a
+    real-time upstream feed, where that day's lab result genuinely isn't in
+    yet. `alkalinity_threshold` should be the recall-tuned cutoff from
+    `alkalinity_alert_dates` on a backtest (sklearn's default 0.5 does not
+    match the false-alarm/missed-detection cost asymmetry guide.md
+    describes), not a hand-picked number.
+    """
+    toc_train = df_toc.dropna(subset=[*toc_features, toc_target_col])
+    toc_latest = df_toc.dropna(subset=toc_features).iloc[[-1]]
+    toc_model = GradientBoostingRegressor(
+        loss="quantile", alpha=0.9, n_estimators=300, random_state=RANDOM_STATE
+    )
+    toc_model.fit(toc_train[toc_features], toc_train[toc_target_col])
+    toc_pred = float(toc_model.predict(toc_latest[toc_features])[0])
+
+    alk_train = df_alk.dropna(subset=[*alk_features, alk_target_col])
+    alk_latest = df_alk.dropna(subset=alk_features).iloc[[-1]]
+    alk_model = make_pipeline(StandardScaler(), LogisticRegression(max_iter=1000))
+    alk_labels = (alk_train[alk_target_col] < alkalinity_actionable_level).astype(int)
+    alk_model.fit(alk_train[alk_features], alk_labels)
+    alk_prob = float(alk_model.predict_proba(alk_latest[alk_features])[:, 1][0])
+
+    toc_dose_now = toc_pred >= toc_actionable_level
+    alk_dose_now = alk_prob >= alkalinity_threshold
+
+    return CurrentDoseDecision(
+        as_of_toc_date=toc_latest.index[0],
+        toc_predicted_p90=toc_pred,
+        toc_dose_now=toc_dose_now,
+        as_of_alkalinity_date=alk_latest.index[0],
+        alkalinity_probability=alk_prob,
+        alkalinity_dose_now=alk_dose_now,
+        dose_now=toc_dose_now or alk_dose_now,
     )
