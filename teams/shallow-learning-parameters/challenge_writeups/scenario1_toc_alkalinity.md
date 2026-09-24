@@ -226,6 +226,64 @@ necessarily "more representative") or a data-handling issue in how this
 catalog aggregated the near-surface reading; it isn't resolved here and
 shouldn't be trusted without more digging.
 
+## Deeper model-family follow-up: tuning, quantile regression, multi-output, Gaussian Processes, and SARIMAX
+
+The gradient-boosting paragraph above ended with an open question — is
+untuned boosting a bad fit here, or just an untuned one? — and the SVR
+paragraph flagged an untried `GridSearchCV` pass as "a natural next step."
+Both, plus three more model families, are now implemented in
+[`models_advanced.py`](../models_advanced.py); full numbers in
+[`results/parameter_summary.md`](../results/parameter_summary.md).
+
+**Hyperparameter tuning answers the open question directly**: a
+`GridSearchCV` pass over `GradientBoostingRegressor` (`TimeSeriesSplit`
+within the training half, same held-out test split as everywhere else)
+turns TOC's *worst* model into the *best* one — R² 0.111 → **0.561**,
+ahead of SVR (0.502) and the random forest (0.334). Alkalinity improves
+too, 0.327 → **0.387**, though it still trails SVR's 0.423.
+
+![Untuned vs. tuned gradient boosting](../figures/19_tuning_comparison.png)
+
+**Quantile regression** targets `guide.md` section 10's actual concern —
+catching peaks, not average R² — directly, by fitting the 90th percentile
+instead of the mean. TOC's predicted band is well-calibrated (coverage
+0.918 against a 0.9 target); alkalinity's is looser (coverage 0.839,
+meaning the real value exceeds the "90th percentile" line about 16% of the
+time instead of 10%):
+
+![Quantile bands vs. actual](../figures/21_quantile_bands.png)
+
+**Joint multi-output modeling** (one random forest fit on both targets at
+once, vs. each target's own independent forest, both on the shared
+lag_days=2 frame) is the one genuinely mixed result of the five: TOC
+improves substantially (0.334 → 0.569) but alkalinity gets worse
+(0.170 → -0.055, below a mean-only baseline) — most likely because forcing
+alkalinity onto TOC's 2-day lag instead of its own preferred 4-day lag (see
+the grid search above) costs more than joint tree-sharing gains it:
+
+![Independent vs. joint multi-output R^2](../figures/22_multioutput_comparison.png)
+
+**Gaussian Process regression** is the one family here that returns a
+calibrated uncertainty band alongside its point estimate — arguably a
+better fit for "give treatment staff actionable time to prepare" than a
+bare number. TOC scores R²=0.357 with a mean predicted std of 0.301 mg/L;
+alkalinity scores R²=0.516 (second only to tuned gradient boosting for
+that target) with a mean std of 5.414 mg/L:
+
+![Gaussian Process predictions with uncertainty bands](../figures/23_gaussian_process.png)
+
+**SARIMAX**, a time-series-native alternative to this catalog's
+lag-as-a-feature approach, is the weakest of the five and an instructive
+failure along the way: fit naively on the real (calendar-gapped) date
+index it crashes outright, and even after refitting on a plain integer
+index its first working version scored R²=-13.988 for TOC because an
+AR(1) with no intercept decays toward zero, not toward the series' actual
+mean. Adding an explicit constant term fixes the collapse and lands TOC at
+R²=0.270 and alkalinity at R²=0.108 — positive, but well below the
+lag-feature models used everywhere else in this catalog:
+
+![SARIMAX forecast vs. actual](../figures/24_sarimax.png)
+
 ## What the deck asks for that isn't here
 
 Nothing, as it turns out — every bullet in this scenario now has at least

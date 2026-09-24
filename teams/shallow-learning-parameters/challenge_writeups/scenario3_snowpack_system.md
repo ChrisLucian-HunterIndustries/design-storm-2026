@@ -51,6 +51,33 @@ peak SWE of 7.9 in is roughly a third of 2024's 20.9 in, and its mean flow
 is the lowest of the five years — a direct, data-grounded read of the
 "2026 drought" the deck itself names as a sector challenge (slide 5).
 
+## A predictive model: 3-day streamflow forecast
+
+The first bullet asks for "a model... that demonstrate[s] how water enters
+and moves through the system" — parameters.md's longest-standing
+unimplemented idea was a direct, standalone answer to that: forecast
+South Platte streamflow a few days ahead from today's conditions, using
+[`data_loader.build_flow_forecast_dataset`](../data_loader.py) (today's
+flow/snowpack/weather as features, flow `lead_days` later as target,
+independent of the TOC/alkalinity question entirely).
+
+![3-day-ahead streamflow forecast, held-out half](../figures/20_flow_forecast.png)
+
+| model | held-out R² |
+|---|---:|
+| Linear (today's Flow_CFS only) | 0.910 |
+| Random forest (Flow_CFS, roll_flow_7, SWE, roll_swe_7, TMAX, TMIN) | 0.887 |
+
+A strong result on the first try, and an instructive one about *why* it's
+strong: `Flow_CFS` alone (feature importance 0.731) dominates over
+snowpack (`roll_swe_7`, 0.019) and weather (`TMAX`/`TMIN`, 0.017/0.014) —
+at a 3-day horizon, streamflow is mostly explained by its own recent
+persistence, not by the snowpack/weather conditions this scenario
+otherwise focuses on. That's a meaningfully different result from Scenario
+1's TOC/alkalinity models, where snowpack and weather terms carry real
+weight — worth stating plainly rather than implying snowpack "drives"
+short-horizon flow the same way it drives multi-day TOC/alkalinity lags.
+
 ## Transit-time tracing: "follow a parameter through the system"
 
 The third bullet asks to choose a parameter and follow it through the
