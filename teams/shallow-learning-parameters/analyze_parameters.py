@@ -18,13 +18,16 @@ from data_loader import (
     load_dwr_telemetry,
     load_snowpack,
     load_target,
+    load_usgs_gage,
     with_calendar_year_and_doy,
 )
 from models import (
+    best_lag,
     cluster_hydrologic_regimes,
     fit_linear_baseline,
     fit_random_forest_importance,
     fit_threshold_classifier,
+    lag_correlation_scan,
 )
 
 DATA_DIR = Path(__file__).resolve().parents[2] / "data"
@@ -52,6 +55,15 @@ ALK_FEATURES = [
     "Temp_C_Mean",
     "month_sin",
 ]
+
+
+LAG_SCAN_PAIRS = [
+    ("Turbidity_Median", "TOC_mg_L"),
+    ("Flow_CFS", "TOC_mg_L"),
+    ("Specific_Cond_Mean", "Alk_mg_L"),
+    ("pH_Median", "Alk_mg_L"),
+]
+MAX_LAG_DAYS = 10
 
 
 def _fmt(value: float) -> str:
@@ -99,6 +111,28 @@ def _yearly_summary_table(data_dir: Path) -> list[str]:
             _fmt(toc.loc[year, "max"]) if year in toc.index else "n/a",
         ]
         lines.append("| " + " | ".join(row) + " |")
+    return lines
+
+
+def _lag_scan_table(data_dir: Path) -> list[str]:
+    """Scenario 3 grounding: empirically fit upstream-to-plant lag per
+    predictor/target pair (see models.lag_correlation_scan) rather than
+    reusing Jake's fixed 2/4-day lags uncritically."""
+    gage = load_usgs_gage(data_dir)
+    telemetry = load_dwr_telemetry(data_dir)
+    target = load_target(data_dir)
+    sources = {
+        "Turbidity_Median": gage["Turbidity_Median"],
+        "Specific_Cond_Mean": gage["Specific_Cond_Mean"],
+        "pH_Median": gage["pH_Median"],
+        "Flow_CFS": telemetry["Flow_CFS"],
+    }
+
+    lines = ["| predictor | target | best lag (days) | correlation at best lag |", "|---|---|---:|---:|"]
+    for predictor_name, target_name in LAG_SCAN_PAIRS:
+        scan = lag_correlation_scan(sources[predictor_name], target[target_name], MAX_LAG_DAYS)
+        lag = best_lag(scan)
+        lines.append(f"| {predictor_name} | {target_name} | {lag} | {_fmt(scan[lag])} |")
     return lines
 
 
@@ -163,6 +197,16 @@ def main() -> None:
 
     lines.append("\n## Year-over-year summary (Scenario 3: drought vs. wet years)\n")
     lines += _yearly_summary_table(DATA_DIR)
+
+    lines.append(
+        "\n## Empirical transit-time lag scan (Scenario 3: follow a parameter through the system)\n"
+    )
+    lines.append(
+        f"Correlation between each raw upstream predictor and each target, scanned over lags "
+        f"0-{MAX_LAG_DAYS} days (models.lag_correlation_scan). This is a statistical fit, not a "
+        "measured travel time -- see guide.md section 1.\n"
+    )
+    lines += _lag_scan_table(DATA_DIR)
 
     output_path = RESULTS_DIR / "parameter_summary.md"
     output_path.write_text("\n".join(lines) + "\n", encoding="utf-8")

@@ -89,6 +89,7 @@ def test_analyze_parameters_writes_summary(
     text = output.read_text(encoding="utf-8")
     assert "Random forest, held-out R^2" in text
     assert "Unsupervised hydrologic-regime clusters" in text
+    assert "Empirical transit-time lag scan" in text
 
 
 def test_visualize_writes_all_figures(
@@ -108,6 +109,9 @@ def test_visualize_writes_all_figures(
         "05_hydrologic_regimes.png",
         "06_alkalinity_classifier_pr_curve.png",
         "07_snowpack_streamflow_by_year.png",
+        "08_lag_correlation_scan.png",
+        "09_storm_event_trace.png",
+        "10_transit_animation.gif",
     ]
     for name in expected:
         assert (figures_dir / name).exists(), name
