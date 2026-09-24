@@ -39,6 +39,7 @@ from visualize_advanced import (
     plot_tuning_comparison,
 )
 from visualize_anomaly import plot_anomaly_detection
+from visualize_dosing import plot_dosing_alert_timeline
 from visualize_sonde import (
     plot_depth_profiles,
     plot_sonde_vs_gage_comparison,
@@ -395,8 +396,9 @@ def main() -> None:
     plot_gaussian_process(df_toc, TOC_FEATURES, df_alk, ALK_FEATURES, FIGURES_DIR / "23_gaussian_process.png")
     plot_sarimax(df_toc, df_alk, FIGURES_DIR / "24_sarimax.png")
     plot_alkalinity_roc_curve(df_alk, FIGURES_DIR / "25_alkalinity_roc_curve.png")
+    plot_dosing_alert_timeline(df_toc, TOC_FEATURES, df_alk, ALK_FEATURES, FIGURES_DIR / "26_dosing_alert_timeline.png")
 
-    print(f"Wrote 24 figures + 1 animation to {FIGURES_DIR}")
+    print(f"Wrote 25 figures + 1 animation to {FIGURES_DIR}")
 
 
 if __name__ == "__main__":
