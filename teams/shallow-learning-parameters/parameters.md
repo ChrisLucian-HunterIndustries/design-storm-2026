@@ -35,6 +35,24 @@ that reason, not because the underlying relationships changed. Treat this as
 a second, simpler measurement of the same signal, not a benchmark of his
 work.
 
+One more simplification worth naming: Jake's original notebooks
+(`scripts/TOC_SoftSensor.ipynb`/`scripts/Alkalinity_Soft_Sensor.ipynb`) lag
+each upstream source separately — NOAA precip gets 2 extra days over the
+gage/SNOTEL/DWR sources (4 vs. 2 for TOC, 6 vs. 4 for alkalinity) because
+NOAA's own feed already runs ~2 days behind present day. `data_loader.build_dataset`
+shifts every predictor by one uniform `lag_days` instead, so any lead-time
+number quoted in this catalog (e.g. the dosing-alert calendar) reflects the
+lab-result lag only, not precip's own reporting-delay margin on top of it.
+
+Is Jake's per-source lag actually better, or is a flat 2/4 days just as good?
+Mixed: `data_loader.build_dataset_per_source_lag` (same random forest/features
+as the model-family table) scores TOC_mg_L at **0.599 R²** vs. 0.334 for the
+uniform lag (a real improvement — precip's own reporting delay was costing
+accuracy), but Alk_mg_L at **0.184 R²** vs. 0.234 (slightly worse — its
+features don't lean on precipitation, so the extra shift just adds
+misalignment with no benefit). See `results/parameter_summary.md`'s
+"Per-source lag" section for the full table.
+
 ## What this folder adds: new input/output pairings
 
 Beyond reproducing Scenario 1's two targets, four other shallow-learning

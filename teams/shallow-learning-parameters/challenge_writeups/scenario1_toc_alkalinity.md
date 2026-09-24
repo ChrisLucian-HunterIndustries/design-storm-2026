@@ -33,6 +33,40 @@ The first bullet is fully covered with the national datasets already in
 `data/`: [`data_loader.py`](../data_loader.py) joins the USGS gage, DWR
 telemetry, SNOTEL snowpack, and NOAA weather feeds onto the Foothills lab
 results, shifted 2 days (TOC) / 4 days (alkalinity) as Jake's own models do.
+
+> **Simplification vs. the originals:** Jake's own notebooks
+> (`scripts/TOC_SoftSensor.ipynb`, `scripts/Alkalinity_Soft_Sensor.ipynb`,
+> read-only) lag each upstream source *separately* rather than shifting
+> everything by one number — NOAA precip gets 4 days for TOC / 6 for
+> alkalinity (2 days more than the gage/SNOTEL/DWR sources), because NOAA's
+> feed itself is already ≈2 days behind present day, so the extra lag
+> compensates for that source's own reporting delay, not a longer physical
+> transit time. `data_loader.build_dataset` here shifts every predictor
+> column together by the same `lag_days`, so the lead-time numbers quoted
+> below (2/4 days) describe the lab-result lag only, not precip's own extra
+> reporting-delay margin.
+>
+> **Is Jake's per-source lag actually better?** Mixed, and worth reporting
+> honestly rather than assuming yes: `data_loader.build_dataset_per_source_lag`
+> reproduces his exact per-source shifts, refit with the same random forest
+> and feature list as the model-family table below —
+
+| target | lag approach | held-out R² |
+|---|---|---:|
+| TOC_mg_L | uniform (lag_days=2 for every source) | 0.334 |
+| TOC_mg_L | per-source (Jake's: precip lagged 2 days further) | 0.599 |
+| Alk_mg_L | uniform (lag_days=4 for every source) | 0.234 |
+| Alk_mg_L | per-source (Jake's: precip lagged 2 days further) | 0.184 |
+
+> TOC improves substantially (+0.265 R²) — precipitation's own reporting
+> delay really was costing this catalog's uniform-lag TOC model accuracy.
+> Alkalinity gets slightly *worse* (-0.050) — its features lean on
+> `Specific_Cond_Mean`/`pH_Median`/flow rather than precipitation, so
+> lagging precip 2 days further just moves that one feature further out of
+> sync with the rest, with no offsetting benefit. Full numbers in
+> [`results/parameter_summary.md`](../results/parameter_summary.md)'s
+> "Per-source lag" section.
+
 [`models.py`](../models.py) fits a **RandomForestRegressor** per target on a
 time-ordered (no shuffling, no leakage) split.
 

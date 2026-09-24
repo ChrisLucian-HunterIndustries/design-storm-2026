@@ -28,6 +28,10 @@ small web app plotting the predictions alongside the upstream data behind
 them. Only the Strontia sonde bullet remains unimplemented — that file
 isn't present in this workspace's `data/`.
 
+> **Actionable information:** the dosing alert calendar's lead time is
+> **4 days for alkalinity, 2 days for TOC** — already baked into each
+> alert's own date, so no separate lead-time lookup is needed.
+
 ### [Scenario 2: Storm and Runoff Events and Real-Time Data Application](scenario2_storm_runoff.md)
 
 The two depth-profile bullets need the same missing Strontia sonde data.
