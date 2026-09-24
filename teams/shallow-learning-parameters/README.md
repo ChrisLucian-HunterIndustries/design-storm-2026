@@ -2,7 +2,12 @@
 
 What in `../../data/` can be a shallow-learning input or output, backed by
 numbers actually computed from the files. Start with
-[`parameters.md`](parameters.md).
+[`parameters.md`](parameters.md). For a per-scenario narrative against the
+Design Storm challenge deck, start with
+[`challenge_writeup.md`](challenge_writeup.md), which links out to
+[Scenario 1](scenario1_toc_alkalinity.md),
+[Scenario 2](scenario2_storm_runoff.md), and
+[Scenario 3](scenario3_snowpack_system.md).
 
 - `data_loader.py` / `test_data_loader.py` — load and join the daily CSVs,
   engineer the features from `guide.md` section 7.
