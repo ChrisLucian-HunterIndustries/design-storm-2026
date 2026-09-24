@@ -110,15 +110,21 @@ Generate with `python visualize.py`; written to `figures/`.
 | `04_feature_importance.png` | Random forest feature importances, TOC vs. alkalinity, side by side. |
 | `05_hydrologic_regimes.png` | PCA + KMeans: unsupervised day-clustering with no target involved. |
 | `06_alkalinity_classifier_pr_curve.png` | Precision/recall curve for the alkalinity-below-60 classifier. |
+| `07_snowpack_streamflow_by_year.png` | SWE and streamflow overlaid by calendar year (drought vs. wet years). |
+| `08_lag_correlation_scan.png` | Correlation vs. lag, empirical transit-time fit per predictor/target pair. |
+| `09_storm_event_trace.png` | One real storm traced from the upstream gage to the Foothills lab result. |
+| `10_transit_animation.gif` | Animated cursor sweeping the same storm window across both panels. |
+
+See [`challenge_writeup.md`](challenge_writeup.md) for the per-scenario narrative these figures support, including the transit-time tracing (07-10) built for Scenario 3.
 
 ## Running it
 
 ```
 cd teams/shallow-learning-parameters
 python analyze_parameters.py   # writes results/parameter_summary.md
-python visualize.py            # writes figures/*.png
+python visualize.py            # writes figures/*.png and figures/*.gif
 python -m pytest -q            # unit tests for data_loader.py and models.py
 ```
 
-Requires `pandas`, `scikit-learn`, `matplotlib`, `pytest` (see
+Requires `pandas`, `scikit-learn`, `matplotlib`, `pillow`, `pytest` (see
 `requirements.txt`).

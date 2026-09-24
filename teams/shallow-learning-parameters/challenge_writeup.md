@@ -181,15 +181,102 @@ peak SWE of 7.9 in is roughly a third of 2024's 20.9 in, and its mean flow
 is the lowest of the five years — a direct, data-grounded read of the
 "2026 drought" the deck itself names as a sector challenge (slide 5).
 
+### Transit-time tracing: "follow a parameter through the system"
+
+The third bullet asks to choose a parameter and follow it through the
+system, checking whether snowpack, rainstorms, or lake turnover change how
+it travels. Lake turnover is out of reach (see the gap note below), but
+snowpack/rainstorm transport is answerable with what's here, in three steps
+that build on each other.
+
+**1. How long does a signal actually take to show up?** Rather than assume
+Jake's fixed 2-day (TOC) / 4-day (alkalinity) lag, `models.lag_correlation_scan`
+correlates each raw upstream predictor against each target at every lag from
+0 to 10 days and reports where the correlation peaks — an empirical,
+per-predictor transit/mixing time.
+
+![Correlation vs. lag for four predictor/target pairs](figures/08_lag_correlation_scan.png)
+
+| predictor | target | best lag (days) | correlation at best lag |
+|---|---|---:|---:|
+| Turbidity_Median | TOC_mg_L | 5 | 0.709 |
+| Flow_CFS | TOC_mg_L | 0 | 0.485 |
+| Specific_Cond_Mean | Alk_mg_L | 3 | 0.722 |
+| pH_Median | Alk_mg_L | 6 | 0.632 |
+
+Two things worth reading carefully here, not just the peak numbers. First,
+**flow's best lag is 0 days** — the river's own volume responds the same day
+water arrives, which is exactly what you'd expect physically (it doesn't
+need to mix with anything to register as "more water"). **Turbidity peaks
+5 days out**, later than flow, because suspended sediment has to actually
+travel and redistribute through Strontia Springs Reservoir before it shows
+up in a lab sample at Foothills — the mixing-time story `guide.md` section 1
+describes, not raw travel time. Second, conductance's curve
+(right panel) is fairly flat across 2-5 days (0.70-0.72 the whole span) —
+alkalinity's signal is *broad* in time, not a sharp single-day peak, which
+is a weaker, less confident basis for picking one lag than TOC's more
+sharply peaked curve. Both curves are read directly from `parameter_summary.md`
+("Empirical transit-time lag scan"); nothing here is asserted from the shape
+of the plot without the underlying number to back it.
+
+**2. What does that look like for one real storm?** Numbers on a page don't
+show *why* a 5-day lag makes sense the way watching a real event does. The
+single highest turbidity x flow "loading" day in the whole dataset —
+**2023-05-12** — is used here as a concrete trace: the upstream gage's
+turbidity and flow both spike that day, and the Foothills lab result is
+plotted on its own axis below, with the empirically-fit response date
+marked.
+
+![One real storm traced from the upstream gage to the treatment plant](figures/09_storm_event_trace.png)
+
+Reading it left to right: turbidity and flow rise together and peak
+sharply on 2023-05-12. TOC at the plant is still flat for a few more days,
+then climbs steeply starting 2023-05-15 and peaks around 2023-05-19-20 —
+roughly a week after the upstream spike, bracketing the 5-day empirical lag
+marked on the plot. The plant's TOC then decays much more slowly than the
+upstream turbidity spike did (compare the sharp brown peak above to the
+gentle green decline below) — consistent with a reservoir smoothing out a
+sharp pulse rather than passing it straight through, again the "mixing" idea
+rather than a plug of water arriving and leaving on schedule.
+
+**3. Watching it happen.** The closest thing here to the deck's "single
+unified... animation" of a parameter moving through the system: the same
+storm window, animated as a synchronized cursor sweeping day by day across
+the upstream gage (top) and the Foothills lab result (bottom).
+
+![Animated transit trace: a cursor sweeps the same storm window across both panels](figures/10_transit_animation.gif)
+
+This is deliberately *not* an animation of a literal water parcel travelling
+from point A to point B — this data cannot ground that claim (see the
+caveat below). What it does show honestly: watch the cursor cross the
+upstream peak, then keep watching as it takes several more sweeps before
+the bottom panel's curve turns upward — the lag is visible as elapsed time
+between the two panels reacting, not asserted as a physical transit path.
+
+**A caveat that matters more than any of the numbers above:** Denver
+Water's own hydraulic model puts the physical water travel time from this
+sensor to the plant intake at about **four hours** (`guide.md` section 1).
+The multi-day lags found here are empirical best-fit correlations, not
+transit times — Jake's own materials attribute the gap to mixing and
+deposition inside Strontia Springs Reservoir, and he explicitly asks that
+the exact lag number not be leaned on because it keeps moving as more data
+arrives. Treat "5 days" as "this is how long it takes the reservoir to
+finish responding to a pulse," not "this is how long the water was in
+transit."
+
 ### What the deck asks for that isn't here
 
-- "Lake turnover" (third bullet) needs the same Strontia sonde depth data
-  as Scenario 2 — not present in this workspace.
-- A single unified "follow a parameter through the system" animation beyond
-  the existing 3D map and this static year-over-year comparison — the
-  `05_hydrologic_regimes.png` cluster view is a step toward that (it groups
-  days by upstream conditions), but nothing here yet traces a single
-  parcel of water's transit time end to end.
+- **"Lake turnover"** (third bullet) needs the same Strontia sonde
+  depth-profile data as Scenario 2 — confirmed twice now, still not present
+  in this workspace's `data/`. Nothing above touches depth or stratification;
+  the transit-time tracing above is entirely from the single upstream gage
+  and the Foothills lab result, both surface/single-point measurements.
+- A model that identifies *storm events* automatically and traces all of
+  them this way, rather than the one hand-picked highest-loading day above —
+  `05_hydrologic_regimes.png`'s cluster view is a step toward automatic
+  event detection (it already separates a 36-day high-flow/high-TOC cluster
+  from the rest), but nothing here yet turns that cluster into a list of
+  discrete, dated events to animate one after another.
 
 ---
 
