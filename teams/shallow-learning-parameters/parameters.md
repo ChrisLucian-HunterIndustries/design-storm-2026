@@ -20,6 +20,7 @@ everything below.
 | `SouthPlatteFlow.csv`, `SouthPlatteTelemetry.csv` | `Flow_CFS`, `GageHeight_ft` | **Input** for both targets (loading term, see `turb_flow` below). Also a legitimate **output**: forecasting flow itself a few days out from snowpack + temperature is a snowmelt-runoff model, useful independent of TOC/alkalinity (Scenario 3). The two files overlap (both carry `Flow_CFS`); this folder only reads `SouthPlatteTelemetry.csv`, which also has gage height. `Precip` in the telemetry file is a dirty running total (guide.md section 4) — do not use it; NOAA `PRCP` is the clean version. |
 | `HoosierPass.csv` | `SWE` | **Input**, snowpack driving spring runoff. Also an **output**: predicting SWE decline/melt-out date from temperature is a smaller, well-posed regression, and cross-referencing `HoosierPass.csv` against `MichiganCreek.csv` on their shared date range is a ready-made **anomaly-detection** exercise — `MichiganCreek.csv`'s known bad patch (SWE 9.0 bracketed by zeros, see `AGENTS.md`) is exactly the kind of single-point sensor fault a simple z-score or isolation forest should flag automatically. |
 | `USC00058022.csv` | `PRCP`, `SNOW`, `TMAX`, `TMIN` | **Input** only, in this catalog. Weather driving everything downstream. |
+| `Strontia 0407_0819.xlsx` | `Temp_C`, `Conductivity`, `pH`, `Turbidity_NTU`, `Chl_ugL`, `Phycocyanin`, `ODO_mgL`, all by `Depth_m` | **Input** (closer, but shorter-record, alternative to the upstream gage — see [scenario1](challenge_writeups/scenario1_toc_alkalinity.md)) and **output** in its own right: surface-minus-bottom temperature per cast is a stratification/"lake turnover" signal (see [scenario3](challenge_writeups/scenario3_snowpack_system.md)), and depth-resolved turbidity before/after a storm is a direct read on how storms redistribute water quality through the column (see [scenario2](challenge_writeups/scenario2_storm_runoff.md)). Loaded by [`sonde_loader.py`](sonde_loader.py) — this file was absent from this workspace's `data/` earlier in this catalog's development; it is present now, and every section referencing it says so explicitly rather than silently updating the earlier "gap" claim. |
 
 ## What Jake already built (for context)
 
@@ -116,8 +117,12 @@ Generate with `python visualize.py`; written to `figures/`.
 | `10_transit_animation.gif` | Animated cursor sweeping the same storm window across both panels. |
 | `11_model_family_comparison.png` | Held-out R² across linear, random forest, and SVR model families. |
 | `12_lag_day_grid_search.png` | Held-out R² vs. lag_days, same random forest rebuilt at each candidate lag. |
+| `13_stratification_timeline.png` | Surface-minus-bottom temperature per Strontia sonde cast, across the season -- stratification/"lake turnover". |
+| `14_depth_profiles.png` | Real depth profiles across the season -- the reservoir's thermocline forming from spring to summer. |
+| `15_storm_profile_comparison.png` | Full depth profile before/after a real 2026 storm -- does the signal reach every depth? |
+| `16_sonde_vs_gage_comparison.png` | Sonde vs. upstream gage, same restricted window -- is the closer sensor actually better? |
 
-See [`challenge_writeups/challenge_writeup.md`](challenge_writeups/challenge_writeup.md) for the per-scenario narrative these figures support: [Scenario 1](challenge_writeups/scenario1_toc_alkalinity.md) for model families and the lag sweep (11-12), [Scenario 2](challenge_writeups/scenario2_storm_runoff.md) for the regime clusters (05), [Scenario 3](challenge_writeups/scenario3_snowpack_system.md) for the year-over-year comparison and transit-time tracing (07-10). [`viewer.html`](viewer.html) is a small web app (serve with `python3 serve.py` from the repo root) plotting the same predictions interactively, fed by `results/predictions.json`.
+See [`challenge_writeups/challenge_writeup.md`](challenge_writeups/challenge_writeup.md) for the per-scenario narrative these figures support: [Scenario 1](challenge_writeups/scenario1_toc_alkalinity.md) for model families, the lag sweep, and the sonde-as-predictor comparison (11-12, 16), [Scenario 2](challenge_writeups/scenario2_storm_runoff.md) for the regime clusters and storm depth-profile (05, 14-15), [Scenario 3](challenge_writeups/scenario3_snowpack_system.md) for the year-over-year comparison, transit-time tracing, and stratification (07-10, 13). [`viewer.html`](viewer.html) is a small web app (serve with `python3 serve.py` from the repo root) plotting the same predictions interactively, fed by `results/predictions.json`.
 
 ## Running it
 
@@ -125,8 +130,8 @@ See [`challenge_writeups/challenge_writeup.md`](challenge_writeups/challenge_wri
 cd teams/shallow-learning-parameters
 python analyze_parameters.py   # writes results/parameter_summary.md and results/predictions.json
 python visualize.py            # writes figures/*.png and figures/*.gif
-python -m pytest -q            # unit tests for data_loader.py and models.py
+python -m pytest -q            # unit tests for data_loader.py, models.py, and sonde_loader.py
 ```
 
-Requires `pandas`, `scikit-learn`, `matplotlib`, `pillow`, `pytest` (see
-`requirements.txt`).
+Requires `pandas`, `scikit-learn`, `matplotlib`, `pillow`, `openpyxl`,
+`pytest` (see `requirements.txt`).

@@ -144,11 +144,53 @@ python3 serve.py            # from the repository root
 # open http://localhost:8765/teams/shallow-learning-parameters/viewer
 ```
 
+## The Strontia sonde as a closer predictor
+
+Update: the Strontia profiling sonde file (`Strontia 0407_0819.xlsx`) was
+absent from this workspace when this catalog first checked, but is now
+present in `data/` — [`sonde_loader.py`](../sonde_loader.py) loads it. This
+section corrects that earlier gap note rather than silently dropping it: an
+absence that was reported twice as "confirmed" is worth being explicit
+about once it changes.
+
+The sonde only covers 2026-04-07 to 2026-08-19 (one season, 390 casts,
+135 overlapping lab results) — far short of the upstream gage's 2022-2026
+record — so `analyze_parameters._sonde_predictor_table` scores both sensors
+on that *same* restricted window, not the gage's full history, for a fair
+comparison:
+
+![Sonde vs. upstream gage, same window](../figures/16_sonde_vs_gage_comparison.png)
+
+| sensor | predictor | target | best lag (days) | correlation at best lag |
+|---|---|---|---:|---:|
+| sonde (Strontia) | Turbidity_NTU | TOC_mg_L | 10 | 0.160 |
+| USGS gage (upstream) | Turbidity_Median | TOC_mg_L | 4 | 0.200 |
+| sonde (Strontia) | Conductivity | Alk_mg_L | 7 | -0.404 |
+| USGS gage (upstream) | Specific_Cond_Mean | Alk_mg_L | 4 | 0.486 |
+
+The deck's hypothesis — that the closer sensor might improve accuracy but
+shorten lead time — is only half right here, and the half that's wrong is
+the more interesting result. Lead time did *not* clearly shorten: the
+sonde's best-fit lag is 10 days for turbidity and 7 for conductivity, both
+*longer* than the gage's 4-day lag on the same window, not shorter. And
+accuracy did not improve: on this restricted window, both sensors are much
+weaker predictors than the multi-year numbers in the section above suggest
+(gage turbidity drops from r=0.709 over the full record to r=0.200 on just
+this one season) — most of that full-record correlation comes from
+year-to-year variation (wet years like 2024 vs. dry years like 2026), not
+day-to-day variation within one season, and a single season can't recover
+it. The sonde's conductivity result is the one that needs a caveat of its
+own: it correlates *negatively* with alkalinity (r=−0.404) where the gage's
+conductance correlates strongly positively (r=0.486) — opposite signs on
+the same physical quantity, on overlapping dates. That's either a real
+effect (the sonde sits in the reservoir past whatever alkalinity-relevant
+mixing happens between the river and Foothills, so "closer" isn't
+necessarily "more representative") or a data-handling issue in how this
+catalog aggregated the near-surface reading; it isn't resolved here and
+shouldn't be trusted without more digging.
+
 ## What the deck asks for that isn't here
 
-- **Strontia profiling sonde**: `reference/README.md` and
-  `data/TERMS.md` describe this instrument (`Strontia 0407_0819.xlsx`,
-  16,093 depth readings), but that file is **not present** in this
-  workspace's `data/` — only the five national-dataset CSVs are. Nothing
-  here uses it; this is a genuine gap, not an oversight. Every other bullet
-  in this scenario is now implemented above.
+Nothing, as it turns out — every bullet in this scenario now has at least
+an attempted implementation above. The Strontia sonde result is a genuine
+answer, just not the one the deck's hypothesis expected.

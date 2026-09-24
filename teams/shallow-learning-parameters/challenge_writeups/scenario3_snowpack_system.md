@@ -134,17 +134,46 @@ arrives. Treat "5 days" as "this is how long it takes the reservoir to
 finish responding to a pulse," not "this is how long the water was in
 transit."
 
+## Lake turnover
+
+Update: the Strontia sonde file (`Strontia 0407_0819.xlsx`) was absent from
+this workspace when this catalog first checked, but is now present in
+`data/` — [`sonde_loader.py`](../sonde_loader.py) loads it, and this bullet
+is answerable for the one season (2026-04-07 to 2026-08-19, 390 casts) it
+covers. `sonde_loader.cast_summary` computes surface-minus-bottom
+temperature per cast, a standard stratification indicator: large values
+mean a layered water column, values near zero mean fully mixed.
+
+![Stratification over the season](../figures/13_stratification_timeline.png)
+
+The pattern across this one season: the reservoir starts April relatively
+weakly stratified (~5°C surface-bottom difference), swings to its most
+stratified reading of the whole record on 2026-05-15 (8.25°C, surface
+15.8°C vs. bottom 7.5°C), then generally trends toward its most *mixed*
+reading on 2026-07-14 (essentially 0°C difference — the closest this
+dataset comes to an observed turnover), before oscillating through the
+rest of the summer. The high-frequency sawtooth pattern visible from
+late June onward reflects real diurnal-scale variability in the casts
+themselves (roughly four per day), not noise in the stratification
+calculation — the reservoir's thermal structure is genuinely that
+variable at sub-daily timescales in mid-summer.
+
+One caveat this catalog can't resolve with the data at hand: the deck's
+"lake turnover" bullet usually refers to the seasonal event where a
+reservoir's whole water column mixes as it cools in fall (or warms in
+spring) past the point where density differences hold layers apart. The
+sonde's record ends 2026-08-19, before fall cooling would drive an actual
+autumn turnover — so "most mixed cast" here is a snapshot of one
+mid-summer day, not necessarily the seasonal turnover event itself.
+
 ## What the deck asks for that isn't here
 
-- **"Lake turnover"** (third bullet) needs the same Strontia sonde
-  depth-profile data as [Scenario 2](scenario2_storm_runoff.md) — confirmed
-  twice now, still not present in this workspace's `data/`. Nothing above
-  touches depth or stratification; the transit-time tracing above is
-  entirely from the single upstream gage and the Foothills lab result, both
-  surface/single-point measurements.
 - A model that identifies *storm events* automatically and traces all of
   them this way, rather than the one hand-picked highest-loading day above —
   `05_hydrologic_regimes.png`'s cluster view is a step toward automatic
   event detection (it already separates a 36-day high-flow/high-TOC cluster
   from the rest), but nothing here yet turns that cluster into a list of
   discrete, dated events to animate one after another.
+- A full autumn-turnover observation (see the caveat above) — the sonde's
+  deployment window ends before fall cooling in 2026.
+
