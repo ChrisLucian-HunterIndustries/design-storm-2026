@@ -209,5 +209,5 @@ Storm date (peak flow and turbidity in the sonde's window): 2026-07-18.
 
 | cast | surface turbidity (NTU) | surface conductivity | bottom temp (C) | surface temp (C) |
 |---|---:|---:|---:|---:|
-| before: 2026-07-17 18:01:59 | 0.910 | 296.520 | 18.398 | 20.014 |
+| before: 2026-07-17 12:06:13 | 0.810 | 294.550 | 14.301 | 19.748 |
 | after: 2026-07-19 00:06:41 | 1.020 | 295.260 | 14.385 | 19.897 |
