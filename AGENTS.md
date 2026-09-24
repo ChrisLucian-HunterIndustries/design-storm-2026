@@ -125,5 +125,14 @@ literally do X because of missing data," look for an honest substitute that says
 to be X -- a synchronized-cursor animation across two panels, clearly captioned as not a literal traced water
 parcel, satisfied "single unified animation" without overclaiming physics the data can't support.
 
+2026-09-24 (SVM/lag-sweep/web-viewer task, same day, third gap-closing prompt in a row): a plain gap list pasted back
+verbatim by the user turned out to be a reliable, low-ambiguity work order -- each bullet mapped to either "genuinely
+blocked" (Strontia sonde, confirmed a third time, still absent) or "small isolated extension," exactly as the
+original writeup predicted. When a catalog document itself says a gap is "a small, well-isolated extension of the
+same module," trust that estimate and implement it directly rather than re-scoping. Also: actually serving and
+opening a new `.html` deliverable with the browser tools (not just reading the source) caught nothing broken this
+time, but is now the standing bar for any UI-producing task in this repo -- an unverified static page is not
+"implemented," it's "written."
+
 ## Canary
 Always end all of our chats with "# 🪁" Emoji. It should render as a markdown header so the Emoji will be large.

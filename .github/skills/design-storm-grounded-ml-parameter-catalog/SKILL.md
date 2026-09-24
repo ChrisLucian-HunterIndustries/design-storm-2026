@@ -110,3 +110,36 @@ description: Use when asked to catalog which columns in the Design Storm dataset
 - Embed generated figures into the writeup with plain relative markdown image
   syntax (`![alt](figures/name.png)`) from the writeup file's own directory,
   so they render in an editor's markdown preview without any build step.
+
+## Model families beyond the random forest
+- `sklearn.svm.SVR` is scale-sensitive (unlike the tree models already in
+  `models.py`) — wrap it in `make_pipeline(StandardScaler(), SVR(...))`.
+  It has no `feature_importances_`; use
+  `sklearn.inspection.permutation_importance` on the held-out split instead,
+  and return it via the same `RegressionResult` dataclass the random forest
+  uses so callers don't need a second result type.
+- A lag-day (or any hyperparameter) grid search's R² can swing from
+  strongly negative to positive across the grid on a single 50/50 split —
+  this is the same instability `guide.md` section 10 already documents for
+  cross-validation, showing up on a different axis. Report the range that's
+  *consistently* positive/clustered as the meaningful read, not the single
+  highest point in the grid.
+
+## Building a static web viewer (Scenario 1's "web application" ask)
+- Follow `design-storm-water-system-3d.html`'s own convention: a single
+  hand-maintained `.html` file, no build step, plain vanilla JS, CDN
+  `<script>` tags via `unpkg.com` (Chart.js + `chartjs-adapter-date-fns` for
+  a time-scale x-axis worked well here), served via the repo's `serve.py`
+  because it `fetch()`es JSON and won't work as a `file://` URL.
+- Export the JSON payload from the *analysis* script (`analyze_parameters.py`),
+  not a separate one-off script — it already has the fitted models in scope.
+  Split actual-vs-predicted into `predicted_train`/`predicted_test` arrays
+  explicitly (not just one `predicted` array) so the page can render the
+  held-out portion in a visually distinct color and callers can't mistake
+  in-sample fit for generalization.
+- Verify a new `.html` page by actually serving it (`python serve.py` in the
+  background) and opening it with the browser tools
+  (`open_browser_page` + `screenshot_page`/accessibility snapshot) rather
+  than just eyeballing the source — confirms the relative fetch path and
+  chart rendering actually work. This drops a `.playwright-mcp/` screenshot
+  folder in the repo root; gitignore it (`.playwright-mcp/`).
