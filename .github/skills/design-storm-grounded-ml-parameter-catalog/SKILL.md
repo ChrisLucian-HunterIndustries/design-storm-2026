@@ -8,6 +8,14 @@ description: Use when asked to catalog which columns in the Design Storm dataset
 ## Where things go
 - `data/`, `scripts/`, `figures/`, `reference/` are Denver Water originals —
   read-only. Never edit in place.
+- Once a per-scenario writeup grows past ~3 scenarios or gets long, split it
+  into one file per scenario (`scenario1_<slug>.md`, etc.) plus a short
+  parent file of the same original name that becomes an index: shared
+  intro/data-terms/repro steps, then one paragraph per scenario linking out
+  and stating its headline finding. Cross-link scenario files to each other
+  directly (e.g. "needs the same missing Strontia sonde data as
+  [Scenario 2](scenario2_storm_runoff.md)") rather than only linking back to
+  the parent, so a reader dropped into one scenario file can still navigate.
 - New analysis/code goes under `teams/<team-name>/` (per README.md's "Working
   as a small team" section), never at the repo root.
 - Read `guide.md` first — it already documents Jake's feature-engineering

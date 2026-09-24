@@ -134,5 +134,12 @@ opening a new `.html` deliverable with the browser tools (not just reading the s
 time, but is now the standing bar for any UI-producing task in this repo -- an unverified static page is not
 "implemented," it's "written."
 
+2026-09-24 (writeup-splitting task, same day, fourth prompt in a row): a single markdown file that grew across three
+prior prompts (scenario writeup, transit-time tracing, SVM/viewer) had accumulated enough content that "split into
+one file per scenario plus a parent" was the right call the moment it was asked, not premature -- recognizing that
+threshold before being asked would have been a better default. Also: `create_file` refuses to overwrite an existing
+path; when a file needs a full-content rewrite rather than a targeted edit, delete it first (`Remove-Item`) then
+`create_file`, instead of fighting `replace_string_in_file` with a whole-file oldString match.
+
 ## Canary
 Always end all of our chats with "# 🪁" Emoji. It should render as a markdown header so the Emoji will be large.
