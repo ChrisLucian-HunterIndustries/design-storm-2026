@@ -14,6 +14,7 @@ from pathlib import Path
 import pandas as pd
 
 from analyze_advanced import build_report_sections
+from analyze_dosing import build_dosing_alert_section
 from analyze_sonde import (
     _anomaly_detection_table,
     _sonde_predictor_table,
@@ -306,6 +307,11 @@ def main() -> None:
     lines.append("|---|---:|")
     for feature, importance in clf_result.importances.items():
         lines.append(f"| {feature} | {_fmt(importance)} |")
+
+    lines.append(
+        "\n## Chemical-dosing alert calendar (when to add chemical after a spike)\n"
+    )
+    lines += build_dosing_alert_section(df_toc, TOC_FEATURES, df_alk, ALK_FEATURES)
 
     lines.append("\n## Unsupervised hydrologic-regime clusters (k=3, TOC frame lag_days=2)\n")
     clean, clusters = cluster_hydrologic_regimes(df_toc, all_features, n_clusters=3)

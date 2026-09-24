@@ -139,6 +139,7 @@ def test_analyze_parameters_writes_summary(
     assert "Joint multi-output modeling" in text
     assert "Gaussian Process regression" in text
     assert "SARIMAX" in text
+    assert "Chemical-dosing alert calendar" in text
 
     json_path = results_dir / "predictions.json"
     assert json_path.exists()
@@ -191,6 +192,7 @@ def test_visualize_writes_all_figures(
         "23_gaussian_process.png",
         "24_sarimax.png",
         "25_alkalinity_roc_curve.png",
+        "26_dosing_alert_timeline.png",
     ]
     for name in expected:
         assert (figures_dir / name).exists(), name
