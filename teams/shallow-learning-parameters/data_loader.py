@@ -121,6 +121,27 @@ def build_dataset(data_dir: Path, lag_days: int = 2) -> pd.DataFrame:
     return target.join(shifted, how="left")
 
 
+def build_dataset_per_source_lag(
+    data_dir: Path, lag_days: int = 2, precip_extra_days: int = 2
+) -> pd.DataFrame:
+    """Like `build_dataset`, but lags each source separately as Jake's own
+    notebooks do (scripts/TOC_SoftSensor.ipynb, scripts/Alkalinity_Soft_Sensor.ipynb):
+    gage/telemetry/snow shift by `lag_days`, NOAA weather shifts by
+    `lag_days + precip_extra_days` -- extra days to cover NOAA's own ~2-day
+    reporting delay, not a longer physical transit time (see the notebooks'
+    own comment on this). Shifting each raw source before engineering
+    features (rather than shifting the combined frame once) reproduces the
+    notebooks' join order exactly."""
+    target = load_target(data_dir)
+    gage = load_usgs_gage(data_dir).shift(lag_days, freq="D")
+    telemetry = load_dwr_telemetry(data_dir).shift(lag_days, freq="D")
+    snow = load_snowpack(data_dir).shift(lag_days, freq="D")
+    weather = load_weather(data_dir).shift(lag_days + precip_extra_days, freq="D")
+
+    features = engineer_predictor_features(gage, telemetry, snow, weather)
+    return target.join(features, how="left")
+
+
 def feature_columns(df: pd.DataFrame) -> list[str]:
     """All engineered/predictor columns in a built dataset, i.e. every
     column that isn't a target."""

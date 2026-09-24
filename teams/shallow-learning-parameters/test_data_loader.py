@@ -14,6 +14,7 @@ import pytest
 
 from data_loader import (
     build_dataset,
+    build_dataset_per_source_lag,
     build_flow_forecast_dataset,
     engineer_predictor_features,
     feature_columns,
@@ -183,6 +184,25 @@ def test_feature_columns_excludes_targets(dataset_dir: Path) -> None:
     assert "TOC_mg_L" not in columns
     assert "Alk_mg_L" not in columns
     assert "turb_flow" in columns
+
+
+def test_per_source_lag_matches_uniform_lag_for_non_precip_sources(dataset_dir: Path) -> None:
+    """gage/telemetry/snow should shift by lag_days alone, same as build_dataset,
+    when precip_extra_days doesn't change their lag."""
+    joined = build_dataset_per_source_lag(dataset_dir, lag_days=2, precip_extra_days=2)
+    # day 4 carries day 2's raw flow reading (110), same as build_dataset(lag_days=2)
+    assert joined.loc["2024-01-04", "Flow_CFS"] == pytest.approx(110.0)
+
+
+def test_per_source_lag_shifts_precip_further_than_other_sources(dataset_dir: Path) -> None:
+    """NOAA weather columns lag lag_days + precip_extra_days (4 total here),
+    not just lag_days (2) like the other sources -- mirrors
+    scripts/TOC_SoftSensor.ipynb's separate, longer precip shift."""
+    joined = build_dataset_per_source_lag(dataset_dir, lag_days=2, precip_extra_days=2)
+    # day 5 (Jan 1 + 4 days) carries Jan 1's weather (TMAX=40), not Jan 3's (TMAX=42)
+    assert joined.loc["2024-01-05", "TMAX"] == pytest.approx(40.0)
+    # but day 5's Flow_CFS still only lags by lag_days=2, i.e. Jan 3's flow (120)
+    assert joined.loc["2024-01-05", "Flow_CFS"] == pytest.approx(120.0)
 
 
 def test_build_flow_forecast_dataset_shifts_target_backward(dataset_dir: Path) -> None:
