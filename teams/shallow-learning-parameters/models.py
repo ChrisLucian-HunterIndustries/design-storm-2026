@@ -21,7 +21,7 @@ from sklearn.ensemble import (
 )
 from sklearn.inspection import permutation_importance
 from sklearn.linear_model import LinearRegression, LogisticRegression
-from sklearn.metrics import precision_recall_curve, r2_score, roc_auc_score
+from sklearn.metrics import precision_recall_curve, r2_score, roc_auc_score, roc_curve
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVR
@@ -179,6 +179,8 @@ class ThresholdClassifierResult:
     thresholds: np.ndarray
     roc_auc: float
     importances: pd.Series
+    fpr: np.ndarray
+    tpr: np.ndarray
 
 
 def fit_threshold_classifier(
@@ -202,12 +204,14 @@ def fit_threshold_classifier(
     scores = model.predict_proba(test[feature_cols])[:, 1]
 
     precision, recall, thresholds = precision_recall_curve(test["_label"], scores)
+    fpr, tpr, _ = roc_curve(test["_label"], scores)
     auc = roc_auc_score(test["_label"], scores)
     importances = pd.Series(model.feature_importances_, index=feature_cols).sort_values(
         ascending=False
     )
     return ThresholdClassifierResult(
-        precision=precision, recall=recall, thresholds=thresholds, roc_auc=auc, importances=importances
+        precision=precision, recall=recall, thresholds=thresholds, roc_auc=auc,
+        importances=importances, fpr=fpr, tpr=tpr,
     )
 
 
@@ -234,11 +238,13 @@ def fit_logistic_baseline(
     scores = model.predict_proba(test[feature_cols])[:, 1]
 
     precision, recall, thresholds = precision_recall_curve(test["_label"], scores)
+    fpr, tpr, _ = roc_curve(test["_label"], scores)
     auc = roc_auc_score(test["_label"], scores)
     coefficients = model.named_steps["logisticregression"].coef_[0]
     importances = pd.Series(np.abs(coefficients), index=feature_cols).sort_values(ascending=False)
     return ThresholdClassifierResult(
-        precision=precision, recall=recall, thresholds=thresholds, roc_auc=auc, importances=importances
+        precision=precision, recall=recall, thresholds=thresholds, roc_auc=auc,
+        importances=importances, fpr=fpr, tpr=tpr,
     )
 
 

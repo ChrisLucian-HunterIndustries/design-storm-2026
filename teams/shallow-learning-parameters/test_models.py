@@ -92,6 +92,9 @@ def test_threshold_classifier_separates_clear_signal(synthetic_frame: pd.DataFra
     assert result.roc_auc > 0.8
     assert len(result.precision) == len(result.recall)
     assert "driver" in result.importances.index
+    assert len(result.fpr) == len(result.tpr)
+    assert result.fpr[0] == 0.0 and result.fpr[-1] == 1.0
+    assert result.tpr[0] == 0.0 and result.tpr[-1] == 1.0
 
 
 def test_logistic_baseline_separates_clear_signal(synthetic_frame: pd.DataFrame) -> None:
@@ -101,6 +104,9 @@ def test_logistic_baseline_separates_clear_signal(synthetic_frame: pd.DataFrame)
     assert result.roc_auc > 0.8
     assert len(result.precision) == len(result.recall)
     assert result.importances["driver"] > result.importances["other"]
+    assert len(result.fpr) == len(result.tpr)
+    assert result.fpr[0] == 0.0 and result.fpr[-1] == 1.0
+    assert result.tpr[0] == 0.0 and result.tpr[-1] == 1.0
 
 
 def test_detect_anomalies_flags_an_obvious_outlier() -> None:
