@@ -158,3 +158,28 @@ Correlation between each raw upstream predictor and each target, scanned over la
 | Flow_CFS | TOC_mg_L | 0 | 0.485 |
 | Specific_Cond_Mean | Alk_mg_L | 3 | 0.722 |
 | pH_Median | Alk_mg_L | 6 | 0.632 |
+
+## Model family comparison (Scenario 1: "try different models like support-vector machines")
+
+| target | model | held-out R^2 |
+|---|---|---:|
+| TOC_mg_L | Linear (turb_flow only) | 0.505 |
+| TOC_mg_L | Random forest | 0.334 |
+| TOC_mg_L | SVR (RBF kernel, scaled features) | 0.502 |
+| Alk_mg_L | Random forest | 0.234 |
+| Alk_mg_L | SVR (RBF kernel, scaled features) | 0.423 |
+
+## Lag-day grid search (Scenario 1: "try different... lag-times")
+
+Same random forest and feature list as above, refit at each candidate lag. Elsewhere in this document TOC uses lag_days=2 and Alk_mg_L uses lag_days=4 (guide.md section 14); compare those rows below against the rest of the grid.
+
+| lag (days) | TOC_mg_L held-out R^2 | Alk_mg_L held-out R^2 |
+|---:|---:|---:|
+| 0 | 0.448 | -0.119 |
+| 1 | 0.426 | -0.019 |
+| 2 | 0.334 | 0.170 |
+| 3 | 0.300 | 0.236 |
+| 4 | 0.358 | 0.234 |
+| 5 | 0.357 | 0.014 |
+| 7 | 0.388 | -0.062 |
+| 10 | 0.534 | -0.416 |
