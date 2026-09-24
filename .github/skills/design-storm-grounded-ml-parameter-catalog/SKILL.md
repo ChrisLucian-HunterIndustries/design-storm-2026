@@ -13,7 +13,7 @@ description: Use when asked to catalog which columns in the Design Storm dataset
   parent file of the same original name that becomes an index: shared
   intro/data-terms/repro steps, then one paragraph per scenario linking out
   and stating its headline finding. Cross-link scenario files to each other
-  directly (e.g. "needs the same missing Strontia sonde data as
+  directly (e.g. "needs the same sonde data as
   [Scenario 2](scenario2_storm_runoff.md)") rather than only linking back to
   the parent, so a reader dropped into one scenario file can still navigate.
 - New analysis/code goes under `teams/<team-name>/` (per README.md's "Working
@@ -72,10 +72,15 @@ description: Use when asked to catalog which columns in the Design Storm dataset
 - When a task asks for a writeup "per challenge/scenario", quote the deck
   verbatim (transcribed from `extract_text()`) before the ML content for each
   scenario, and be explicit about which of the deck's bullets are answered by
-  code in this repo vs. blocked by a missing source (e.g. the Strontia sonde
-  `.xlsx` is described in `reference/README.md` and `data/TERMS.md` but is
-  **not actually present** in this workspace's `data/` — say so rather than
-  silently skipping the bullets that depend on it).
+  code in this repo vs. blocked by a missing source. **Verify "missing" with
+  `list_dir` on the actual `data/` folder every time, not by trusting an
+  earlier session's notes or this file** — the Strontia sonde `.xlsx` was
+  genuinely absent for several sessions in 2026-09, then appeared in `data/`
+  without any announcement; a prior version of this skill (and this repo's
+  memory) asserted it was missing "confirmed three times" right up until a
+  `list_dir` check on 2026-09-24 showed otherwise. Trusting an old claim
+  instead of re-checking would have left three scenarios' worth of real,
+  answerable questions undone.
 
 ## Transit-time / lag analysis (Scenario 3's "follow a parameter")
 - Empirically fit an upstream-to-plant lag with a correlation sweep
