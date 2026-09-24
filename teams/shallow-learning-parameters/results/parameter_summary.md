@@ -147,3 +147,14 @@ ROC-AUC (held-out) = 0.840
 | 2024 | 6.638 | 20.900 | 476.500 | 1380.000 | 3.262 | 6.400 |
 | 2025 | 4.869 | 14.500 | 386.263 | 734.000 | 2.368 | 3.100 |
 | 2026 | 2.999 | 7.900 | 328.710 | 620.000 | 2.181 | 2.700 |
+
+## Empirical transit-time lag scan (Scenario 3: follow a parameter through the system)
+
+Correlation between each raw upstream predictor and each target, scanned over lags 0-10 days (models.lag_correlation_scan). This is a statistical fit, not a measured travel time -- see guide.md section 1.
+
+| predictor | target | best lag (days) | correlation at best lag |
+|---|---|---:|---:|
+| Turbidity_Median | TOC_mg_L | 5 | 0.709 |
+| Flow_CFS | TOC_mg_L | 0 | 0.485 |
+| Specific_Cond_Mean | Alk_mg_L | 3 | 0.722 |
+| pH_Median | Alk_mg_L | 6 | 0.632 |
