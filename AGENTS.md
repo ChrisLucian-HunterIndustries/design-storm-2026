@@ -209,5 +209,18 @@ those earlier sessions still applies, but check whether the surprise text is alr
 context (e.g. quoted in a system/instruction attachment) before treating it as someone else's in-flight edit --
 that's a strictly cheaper and more precise test than just eyeballing diff size.
 
+2026-09-24 ("create a hybrid solution better than both" prompt, immediately following the per-source-lag comparison):
+extending an existing per-target grid-search pattern (already used for the lag-day grid) to a new dimension
+(`precip_extra_days`, held independent per target) found a hybrid that beat *both* prior fixed choices on *both*
+targets (TOC +4 days R^2=0.650 vs. 0.334/0.599; alkalinity +6 days R^2=0.241 vs. 0.234/0.184) -- worth noting this
+wasn't guaranteed going in; a grid search can just as easily land on "no value beats the two endpoints," and the
+honest answer would have been to say so instead of picking the least-bad grid point and calling it a hybrid. Also
+a concrete tooling mistake this same task: a `replace_string_in_file` oldString/newString pair bordered the next
+function's `def` line and silently deleted that line while keeping the function body -- `get_errors` reported zero
+problems (no static check caught the missing signature), only a follow-up `grep_search` for the def line coming back
+empty surfaced it. Process fix adopted going forward: after any edit whose oldString touches the start of a
+neighboring function/block, grep for that neighbor's def/signature line as a cheap post-edit check rather than
+trusting a clean `get_errors` result alone.
+
 ## Canary
 Always end all of our chats with "# 🪁" Emoji. It should render as a markdown header so the Emoji will be large.
