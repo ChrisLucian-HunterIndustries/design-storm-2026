@@ -133,6 +133,12 @@ def test_analyze_parameters_writes_summary(
     assert "depth profile" in text
     assert "classifier: model family comparison" in text
     assert "Sensor-fault anomaly detection" in text
+    assert "Hyperparameter tuning" in text
+    assert "Flow forecasting" in text
+    assert "Quantile / peak-focused regression" in text
+    assert "Joint multi-output modeling" in text
+    assert "Gaussian Process regression" in text
+    assert "SARIMAX" in text
 
     json_path = results_dir / "predictions.json"
     assert json_path.exists()
