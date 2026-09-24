@@ -13,8 +13,10 @@ from models import (
     cluster_hydrologic_regimes,
     fit_linear_baseline,
     fit_random_forest_importance,
+    fit_svr_baseline,
     fit_threshold_classifier,
     lag_correlation_scan,
+    predict_full_series,
     time_ordered_split,
 )
 
@@ -49,6 +51,21 @@ def test_random_forest_ranks_true_driver_above_noise(synthetic_frame: pd.DataFra
     result = fit_random_forest_importance(synthetic_frame, ["driver", "other"], "target")
     assert result.r2 > 0.8
     assert result.importances["driver"] > result.importances["other"]
+
+
+def test_svr_baseline_recovers_strong_signal(synthetic_frame: pd.DataFrame) -> None:
+    result = fit_svr_baseline(synthetic_frame, ["driver", "other"], "target")
+    assert result.r2 > 0.8
+    assert result.importances["driver"] > result.importances["other"]
+
+
+def test_predict_full_series_labels_train_and_test(synthetic_frame: pd.DataFrame) -> None:
+    result = predict_full_series(synthetic_frame, ["driver", "other"], "target")
+    assert len(result.frame) == len(synthetic_frame)
+    assert set(result.frame["split"].unique()) == {"train", "test"}
+    assert result.test_r2 > 0.8
+    # predictions should track the actual values closely given the strong signal
+    assert result.frame["predicted"].corr(result.frame["actual"]) > 0.9
 
 
 def test_cluster_hydrologic_regimes_labels_every_row(synthetic_frame: pd.DataFrame) -> None:

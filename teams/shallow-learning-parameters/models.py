@@ -14,9 +14,12 @@ import pandas as pd
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+from sklearn.inspection import permutation_importance
 from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.metrics import precision_recall_curve, r2_score, roc_auc_score
+from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
+from sklearn.svm import SVR
 
 RANDOM_STATE = 42
 
@@ -68,6 +71,55 @@ def fit_linear_baseline(
     model.fit(x_train, train[target_col])
     predictions = model.predict(x_test)
     return model, r2_score(test[target_col], predictions)
+
+
+def fit_svr_baseline(df: pd.DataFrame, feature_cols: list[str], target_col: str) -> RegressionResult:
+    """Support-vector regression (deck slide 9: "like support-vector
+    machines"), the model family this catalog originally skipped. Features
+    are standardized first since SVR is scale-sensitive, unlike the tree
+    models above. SVR has no built-in `feature_importances_`, so importance
+    here is permutation importance on the held-out split instead."""
+    clean = df.dropna(subset=[*feature_cols, target_col])
+    train, test = time_ordered_split(clean)
+
+    model = make_pipeline(StandardScaler(), SVR(C=10.0, epsilon=0.1))
+    model.fit(train[feature_cols], train[target_col])
+    predictions = model.predict(test[feature_cols])
+    r2 = r2_score(test[target_col], predictions)
+
+    perm = permutation_importance(
+        model, test[feature_cols], test[target_col], n_repeats=20, random_state=RANDOM_STATE
+    )
+    importances = pd.Series(perm.importances_mean, index=feature_cols).sort_values(ascending=False)
+    return RegressionResult(r2=r2, importances=importances)
+
+
+@dataclass
+class FullSeriesPrediction:
+    frame: pd.DataFrame  # columns: actual, predicted, split ("train"/"test"); indexed by date
+    test_r2: float
+
+
+def predict_full_series(
+    df: pd.DataFrame, feature_cols: list[str], target_col: str
+) -> FullSeriesPrediction:
+    """Fit a RandomForestRegressor on the time-ordered train split, then
+    predict every row (train and test) so a viewer can plot the whole
+    actual-vs-predicted timeline with the held-out portion clearly marked --
+    the "projected TOC and/or alkalinity" curve the deck's web-app bullet
+    asks for."""
+    clean = df.dropna(subset=[*feature_cols, target_col])
+    train, test = time_ordered_split(clean)
+
+    model = RandomForestRegressor(n_estimators=300, random_state=RANDOM_STATE)
+    model.fit(train[feature_cols], train[target_col])
+
+    predicted = pd.Series(model.predict(clean[feature_cols]), index=clean.index)
+    split = pd.Series(["train"] * len(train) + ["test"] * len(test), index=clean.index)
+    frame = pd.DataFrame({"actual": clean[target_col], "predicted": predicted, "split": split})
+
+    test_r2 = r2_score(test[target_col], model.predict(test[feature_cols]))
+    return FullSeriesPrediction(frame=frame, test_r2=test_r2)
 
 
 @dataclass
