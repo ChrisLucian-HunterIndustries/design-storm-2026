@@ -6,6 +6,9 @@ __pycache__/
 .coverage
 .pytest_cache/
 
+# Browser-automation tool output (screenshots taken while checking viewer.html).
+.playwright-mcp/
+
 # Private working material. Kept locally and in git history, not on the public tip.
 experiments/
 exploration-notes.md
