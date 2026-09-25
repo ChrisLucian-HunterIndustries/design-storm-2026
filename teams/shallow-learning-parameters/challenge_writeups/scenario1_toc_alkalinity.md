@@ -82,6 +82,17 @@ results, shifted 2 days (TOC) / 4 days (alkalinity) as Jake's own models do.
 > `precip_extra_days` as a direction worth investigating further, not a
 > final answer — see `results/parameter_summary.md`'s "Hybrid lag" section
 > for the full 0-7 day scan behind this table.
+>
+> **Does the better lag also combine with the better model family?** Only
+> for alkalinity. Refitting SVR and gradient boosting (untuned and
+> GridSearchCV-tuned) on each target's own hybrid-lag frame: for **TOC,
+> plain random forest stays best** (0.650, vs. SVR's 0.490 and tuned
+> boosting's 0.555 on the same frame) — a new overall-best TOC score for
+> this whole catalog. For **alkalinity, SVR improves further to 0.440** on
+> the hybrid frame (vs. 0.423 on the uniform frame) — but that's still
+> below Gaussian Process regression's 0.516 (see the model-family section
+> further down), which remains the best alkalinity score here even after
+> this round of lag tuning.
 
 [`models.py`](../models.py) fits a **RandomForestRegressor** per target on a
 time-ordered (no shuffling, no leakage) split.
@@ -410,8 +421,9 @@ the grid search above) costs more than joint tree-sharing gains it:
 calibrated uncertainty band alongside its point estimate — arguably a
 better fit for "give treatment staff actionable time to prepare" than a
 bare number. TOC scores R²=0.357 with a mean predicted std of 0.301 mg/L;
-alkalinity scores R²=0.516 (second only to tuned gradient boosting for
-that target) with a mean std of 5.414 mg/L:
+alkalinity scores R²=0.516 — the **best alkalinity score of any model
+family in this catalog**, including the hybrid-lag experiments above — with
+a mean std of 5.414 mg/L:
 
 ![Gaussian Process predictions with uncertainty bands](../figures/23_gaussian_process.png)
 

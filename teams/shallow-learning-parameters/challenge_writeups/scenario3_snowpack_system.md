@@ -82,9 +82,9 @@ short-horizon flow the same way it drives multi-day TOC/alkalinity lags.
 
 The third bullet asks to choose a parameter and follow it through the
 system, checking whether snowpack, rainstorms, or lake turnover change how
-it travels. Lake turnover is out of reach (see the gap note below), but
-snowpack/rainstorm transport is answerable with what's here, in three steps
-that build on each other.
+it travels. Lake turnover is answered further down this file (now that the
+sonde data is present), but snowpack/rainstorm transport is answerable with
+what's here too, in three steps that build on each other.
 
 **1. How long does a signal actually take to show up?** Rather than assume
 Jake's fixed 2-day (TOC) / 4-day (alkalinity) lag, `models.lag_correlation_scan`

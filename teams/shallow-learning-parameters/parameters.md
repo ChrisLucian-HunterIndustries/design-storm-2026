@@ -62,6 +62,19 @@ stable property of the model, so treat the winning `precip_extra_days` as a
 direction, not a final answer. Full 0-7 day scan in
 `results/parameter_summary.md`'s "Hybrid lag" section.
 
+Does the better lag also combine with the better model family? Only for
+alkalinity. Refitting SVR/gradient boosting (untuned and GridSearchCV-tuned)
+on each target's own hybrid-lag frame: for **TOC, plain random forest stays
+best** (0.650, beating SVR's 0.490, untuned boosting's 0.466, and tuned
+boosting's 0.555 on this same frame) — this is a new overall-best TOC score
+for the whole catalog, beating the previous leader (tuned boosting on the
+uniform frame, 0.561). For **alkalinity, SVR improves further** to **0.440**
+on the hybrid frame (vs. 0.423 on the uniform frame) — a real gain, but still
+below Gaussian Process regression's 0.516 (see below), which remains the
+best alkalinity score in this catalog even after this round of lag tuning.
+Full table in `results/parameter_summary.md`'s "Does the best model family
+also win on the best-lag frame?" section.
+
 ## What this folder adds: new input/output pairings
 
 Beyond reproducing Scenario 1's two targets, four other shallow-learning
@@ -158,15 +171,15 @@ In priority order, with the real result:
    already reports: the lag mismatch, not multi-output modeling itself, is
    the likely cause.
 5. **Gaussian Process Regression** (`ConstantKernel * RBF + WhiteKernel`,
-   standardized features): both targets land in the middle of the pack —
-   TOC R²=0.357 (between the untuned random forest and tuned gradient
-   boosting), alkalinity R²=0.516 (better than every other model family
-   tried for alkalinity except the tuned gradient boosting). Mean predicted
-   std dev is 0.301 mg/L for TOC (roughly 10-15% of a typical 2-3 mg/L
-   reading) and 5.414 mg/L for alkalinity — both informative, non-trivial
-   uncertainty bands rather than a band so wide it's meaningless. This is
-   the only model family here that hands an operator a calibrated
-   uncertainty band alongside the point estimate.
+   standardized features): TOC lands in the middle of the pack, R²=0.357
+   (between the untuned random forest and tuned gradient boosting), but
+   alkalinity's R²=0.516 is the **best alkalinity score of any model family
+   tried in this catalog** (including the hybrid-lag experiments below).
+   Mean predicted std dev is 0.301 mg/L for TOC (roughly 10-15% of a
+   typical 2-3 mg/L reading) and 5.414 mg/L for alkalinity — both
+   informative, non-trivial uncertainty bands rather than a band so wide
+   it's meaningless. This is the only model family here that hands an
+   operator a calibrated uncertainty band alongside the point estimate.
 6. **Time-series-native models** (`statsmodels` SARIMAX, order (1,0,1),
    with the strongest engineered predictor as an exogenous regressor): the
    weakest of the six results, and a genuine, instructive failure along the
