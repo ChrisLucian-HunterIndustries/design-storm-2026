@@ -279,5 +279,22 @@ several sessions where "run the analysis, look at the number" was the entire tas
 grepping, no concurrent-diff surprise -- a reminder that not every prompt needs the full seven-day accumulated
 caution checklist; matching effort to the actual ask (compute honestly, report honestly) is itself the Lean move.
 
+2026-09-25 ("is there public data to fine-tune this until we have more" prompt, immediately after): treated a
+colloquial ML phrase ("fine-tune... until we have more [data]") as two separate, independently testable questions
+rather than one vague one -- "is there new public data" (checked two real candidates, both genuinely negative, then
+found and verified a third that actually works before writing a line of integration code) and "is there a modeling
+technique that substitutes for more data" (a real pretrain-then-fine-tune experiment). Safety/quality read: the
+technique experiment failed (made both targets worse), and the temptation would be to quietly drop it since it adds
+nothing flattering -- reporting it with its actual cause (the background model never saw the current record's
+drought year at all) turns a negative result into a specific, checkable claim instead of a vague "didn't work."
+Systems-thinking read: the new public dataset (drought severity) fixed the *general* multi-year model by a wide
+margin while barely touching the *restricted-window* model it was fetched to help -- the same intervention can solve
+one framing of a problem and not its neighbor, worth checking both explicitly rather than assuming a win transfers.
+Continuous-improvement action: a synthetic test fixture that happened to make every dataset start on the same date
+(fine for every prior use of that fixture) broke silently on a new function that specifically needed *background
+before* a window -- fixed with a length guard rather than reshaping the shared fixture, but worth remembering that a
+long-lived test fixture's implicit assumptions can be invisible until a new kind of function needs something the
+fixture never had to provide before.
+
 ## Canary
 Always end all of our chats with "# 🪁" Emoji. It should render as a markdown header so the Emoji will be large.
