@@ -433,6 +433,22 @@ Snapshot fetched 2026-09-25: 14 forecast periods. Highest precipitation probabil
 | Thursday | 2026-10-01 06:00 | 75 | 20% | Slight Chance Rain Showers then Sunny |
 | Thursday Night | 2026-10-01 18:00 | 45 | 3% | Mostly Clear |
 
+## Melt-out date regression (parameters.md: "predicting SWE decline/melt-out date from temperature" -- documented since the first session, never built until now)
+
+Only 5 water years have a computable melt-out date in this record -- far too few for a held-out train/test split (every other model in this catalog uses one). Reporting the full-sample relationship only, not a held-out R^2, rather than forcing a split that would be meaningless at this sample size.
+
+
+| year | peak SWE (in) | peak date | melt-out date | melt-out day-of-year | mean spring TMAX (F) |
+|---:|---:|---|---|---:|---:|
+| 2022 | 14.3 | 2022-04-25 | 2022-06-05 | 156 | 71.0 |
+| 2023 | 14.5 | 2023-04-28 | 2023-06-14 | 165 | 67.3 |
+| 2024 | 20.9 | 2024-05-12 | 2024-06-12 | 164 | 70.6 |
+| 2025 | 14.5 | 2025-04-21 | 2025-06-04 | 155 | 69.8 |
+| 2026 | 7.9 | 2026-03-16 | 2026-05-15 | 135 | 71.7 |
+
+Pearson r, peak SWE vs. melt-out day-of-year: **0.854** (more snow -> later melt-out, the expected physical direction, if positive). Pearson r, mean spring TMAX vs. melt-out day-of-year: **-0.656** (warmer spring -> earlier melt-out, if negative).
+
+
 ## Storm impact on the reservoir's depth profile (Scenario 2: "how do water quality parameters change and distribute by depth")
 
 Storm date (peak flow and turbidity in the sonde's window): 2026-07-18.
