@@ -40,6 +40,12 @@ from visualize_advanced import (
 )
 from visualize_anomaly import plot_anomaly_detection
 from visualize_dosing import plot_dosing_alert_timeline
+from visualize_experiments import (
+    plot_enso_experiment,
+    plot_hybrid_lag_model_family,
+    plot_lag_approach_comparison,
+    plot_precip_extra_lag_grid,
+)
 from visualize_sonde import (
     plot_depth_profiles,
     plot_sonde_vs_gage_comparison,
@@ -398,7 +404,18 @@ def main() -> None:
     plot_alkalinity_roc_curve(df_alk, FIGURES_DIR / "25_alkalinity_roc_curve.png")
     plot_dosing_alert_timeline(df_toc, TOC_FEATURES, df_alk, ALK_FEATURES, FIGURES_DIR / "26_dosing_alert_timeline.png")
 
-    print(f"Wrote 25 figures + 1 animation to {FIGURES_DIR}")
+    plot_lag_approach_comparison(
+        TOC_FEATURES, ALK_FEATURES, DATA_DIR, FIGURES_DIR / "27_lag_approach_comparison.png"
+    )
+    plot_precip_extra_lag_grid(
+        TOC_FEATURES, ALK_FEATURES, DATA_DIR, FIGURES_DIR / "28_precip_extra_lag_grid.png"
+    )
+    plot_hybrid_lag_model_family(
+        TOC_FEATURES, ALK_FEATURES, DATA_DIR, FIGURES_DIR / "29_hybrid_lag_model_family.png"
+    )
+    plot_enso_experiment(DATA_DIR, FIGURES_DIR / "30_enso_experiment.png")
+
+    print(f"Wrote 29 figures + 1 animation to {FIGURES_DIR}")
 
 
 if __name__ == "__main__":
