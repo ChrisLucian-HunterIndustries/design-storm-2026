@@ -39,12 +39,19 @@ from visualize_advanced import (
     plot_tuning_comparison,
 )
 from visualize_anomaly import plot_anomaly_detection
+from visualize_burn_scar import plot_burn_scar_comparison
 from visualize_dosing import plot_dosing_alert_timeline
 from visualize_experiments import (
     plot_enso_experiment,
     plot_hybrid_lag_model_family,
     plot_lag_approach_comparison,
     plot_precip_extra_lag_grid,
+)
+from visualize_robustness import (
+    plot_cv_stability,
+    plot_delta_target_comparison,
+    plot_regularization_comparison,
+    plot_two_stage_chain,
 )
 from visualize_sonde import (
     plot_depth_profiles,
@@ -424,7 +431,19 @@ def main() -> None:
         s1 / "31_limited_window_comparison.png",
     )
 
-    print(f"Wrote 30 figures + 1 animation to {FIGURES_DIR} (grouped under scenario1/2/3 subfolders)")
+    national_features = {"TOC_mg_L": TOC_FEATURES, "Alk_mg_L": ALK_FEATURES}
+    lag_days_map = {"TOC_mg_L": 2, "Alk_mg_L": 4}
+    plot_regularization_comparison(
+        DATA_DIR, sonde_readings, national_features, lag_days_map, s1 / "32_regularization_comparison.png"
+    )
+    plot_cv_stability(DATA_DIR, sonde_readings, national_features, lag_days_map, s1 / "33_cv_stability.png")
+    plot_delta_target_comparison(
+        DATA_DIR, sonde_readings, national_features, lag_days_map, s1 / "34_delta_target_comparison.png"
+    )
+    plot_two_stage_chain(DATA_DIR, sonde_readings, s1 / "35_two_stage_chain.png")
+    plot_burn_scar_comparison(DATA_DIR, national_features, lag_days_map, s1 / "36_burn_scar_comparison.png")
+
+    print(f"Wrote 35 figures + 1 animation to {FIGURES_DIR} (grouped under scenario1/2/3 subfolders)")
 
 
 if __name__ == "__main__":
