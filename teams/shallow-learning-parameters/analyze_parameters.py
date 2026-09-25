@@ -15,6 +15,7 @@ import pandas as pd
 
 from analyze_advanced import build_report_sections
 from analyze_dosing import build_dosing_alert_section
+from analyze_enso import build_enso_experiment_section
 from analyze_sonde import (
     _anomaly_detection_table,
     _sonde_predictor_table,
@@ -539,6 +540,8 @@ def main() -> None:
     lines += _storm_profile_table(sonde_casts, storm_date)
 
     lines += build_report_sections(DATA_DIR, df_toc, TOC_FEATURES, df_alk, ALK_FEATURES, all_features)
+
+    lines += build_enso_experiment_section(DATA_DIR)
 
     output_path = RESULTS_DIR / "parameter_summary.md"
     output_path.write_text("\n".join(lines) + "\n", encoding="utf-8")

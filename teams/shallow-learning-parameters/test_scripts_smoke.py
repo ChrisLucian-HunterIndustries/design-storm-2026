@@ -144,6 +144,7 @@ def test_analyze_parameters_writes_summary(
     assert "SARIMAX" in text
     assert "Chemical-dosing alert calendar" in text
     assert "Is a dose required right now?" in text
+    assert "NOAA ENSO experiment: does the Oceanic Nino Index help?" in text
 
     json_path = results_dir / "predictions.json"
     assert json_path.exists()
