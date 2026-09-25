@@ -17,6 +17,10 @@ which links out to
   clustering; lag-correlation scanning), all scikit-learn.
 - `analyze_parameters.py` — runs those models against the real data, writes
   `results/parameter_summary.md` and `results/predictions.json`.
+- `fetch_oni.py` / `enso_loader.py` / `test_enso_loader.py` — a new NOAA
+  dataset not in `data/`: the Oceanic Niño Index (ENSO), fetched as
+  `oni.txt` and tried as an extra predictor (see `analyze_enso.py` and
+  `parameters.md`'s ENSO section for whether it actually helps).
 - `visualize.py` — writes the figures (and one animation) in `figures/`.
 - `viewer.html` — a small static web app plotting `results/predictions.json`
   interactively; serve with `python3 serve.py` from the repo root, then open

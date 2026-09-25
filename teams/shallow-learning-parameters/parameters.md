@@ -201,6 +201,19 @@ In priority order, with the real result:
    reason to prefer SARIMAX over the lag-feature approach used everywhere
    else here.
 
+Does NOAA have other public data worth adding, beyond the single GHCN-Daily
+station already in `data/`? Yes: NOAA/PSL's **Oceanic Niño Index (ONI)** —
+a monthly ENSO/climate index, not a local daily reading — fetched by
+[`fetch_oni.py`](fetch_oni.py) and aligned lookahead-safely by
+[`enso_loader.py`](enso_loader.py). Real, mixed result: on this catalog's
+plain uniform-lag baseline it's a large win for TOC (R²=0.334 → **0.512**)
+and a real, smaller win for alkalinity (0.234 → **0.266**); on the
+already-tuned hybrid-lag frame it adds nothing further for TOC (0.650 →
+0.642, noise) but still helps alkalinity a bit (0.241 → **0.261**) — it
+looks like ONI captures some of the same year-to-year wet/dry signal the
+tuned lag already recovers on its own. Full numbers in
+`results/parameter_summary.md`'s "NOAA ENSO experiment" section.
+
 ## Engineered features (inputs to every model below)
 
 Same recipe as `guide.md` section 7, implemented in

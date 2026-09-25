@@ -439,6 +439,40 @@ lag-feature models used everywhere else in this catalog:
 
 ![SARIMAX forecast vs. actual](../figures/24_sarimax.png)
 
+## Does NOAA have other public data that could help? Yes — ENSO
+
+Everything above uses one NOAA source (`data/USC00058022.csv`, a single
+GHCN-Daily station). NOAA/PSL also publishes the **Oceanic Niño Index (ONI)**
+— a monthly, basin-scale climate index (El Niño/La Niña strength), not a
+local daily reading — freely at
+[psl.noaa.gov/data/correlation/oni.data](https://psl.noaa.gov/data/correlation/oni.data).
+[`fetch_oni.py`](../fetch_oni.py) saves a snapshot to `oni.txt`;
+[`enso_loader.py`](../enso_loader.py) parses it and aligns each day to the
+most recently *fully observed* month (one month behind, avoiding lookahead).
+
+Direct correlation with each target is weak on its own (TOC r=0.136, Alk
+r=-0.106), but adding it as one extra random-forest feature tells a real,
+mixed story — evidence it helps, not just an assumption:
+
+| target | frame | held-out R² without ONI | held-out R² with ONI |
+|---|---|---:|---:|
+| TOC_mg_L | uniform lag (this catalog's baseline) | 0.334 | **0.512** |
+| Alk_mg_L | uniform lag (this catalog's baseline) | 0.234 | **0.266** |
+| TOC_mg_L | hybrid lag (this catalog's current best) | 0.650 | 0.642 |
+| Alk_mg_L | hybrid lag (this catalog's current best) | 0.241 | **0.261** |
+
+**It works, with a caveat.** On the plain uniform-lag baseline, ONI is a
+large, real improvement for TOC (+0.178 R²) — nearly matching what tuning
+the lag itself achieved, through a completely different mechanism (a
+basin-scale climate index instead of an engineered daily feature) — and a
+real, smaller gain for alkalinity (+0.032). But once the lag is already
+tuned (the hybrid-lag frame), TOC sees no further benefit (-0.008, within
+noise) and alkalinity's gain shrinks to +0.020: ONI appears to be capturing
+some of the same year-to-year wet/dry signal the tuned lag already
+recovers on its own, not a fully independent one. Full numbers in
+[`results/parameter_summary.md`](../results/parameter_summary.md)'s "NOAA
+ENSO experiment" section.
+
 ## What the deck asks for that isn't here
 
 Nothing, as it turns out — every bullet in this scenario now has at least

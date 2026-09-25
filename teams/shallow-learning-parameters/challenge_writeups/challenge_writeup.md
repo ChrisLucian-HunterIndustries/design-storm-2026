@@ -31,6 +31,13 @@ them. The Strontia sonde bullet is answered too (see below).
 > **4 days for alkalinity, 2 days for TOC** — already baked into each
 > alert's own date, so no separate lead-time lookup is needed.
 
+> **New NOAA dataset tried:** the Oceanic Niño Index (ENSO), a monthly
+> climate index NOAA publishes separately from the daily station data
+> already used here — a large win for TOC (R² 0.334 → 0.512 on the baseline
+> frame) and a smaller, real win for alkalinity, though it adds nothing
+> further once the lag itself is already tuned. See scenario 1's "Does NOAA
+> have other public data that could help?" section.
+
 ### [Scenario 2: Storm and Runoff Events and Real-Time Data Application](scenario2_storm_runoff.md)
 
 The two depth-profile bullets are answered with the Strontia sonde data
