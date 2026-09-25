@@ -19,6 +19,7 @@ from analyze_dosing import build_dosing_alert_section
 from analyze_drought import build_drought_experiment_section
 from analyze_enso import build_enso_experiment_section
 from analyze_lag_experiments import build_lag_experiments_section
+from analyze_snowmelt import build_melt_out_section
 from analyze_nws_forecast import build_nws_forecast_section
 from analyze_robustness import build_robustness_section
 from analyze_sonde import (
@@ -395,6 +396,8 @@ def main() -> None:
     )
 
     lines += build_nws_forecast_section()
+
+    lines += build_melt_out_section(DATA_DIR)
 
     lines.append(
         "\n## Storm impact on the reservoir's depth profile (Scenario 2: \"how do water quality "
