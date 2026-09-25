@@ -408,6 +408,31 @@ The jump above is large enough to be suspicious on its own terms -- large enough
 A plain day-count since the record's start, and the same day-count measured only from the "403" fire's own date (no earlier fire history), both score *below* the no-feature baseline for TOC and only marginally above it for alkalinity -- neither reproduces the jump. Only `days_since_fire`'s actual shape (piecewise-monotonic, reset at each of the ten fires' ignition dates found above) produces the large improvement. Honest reading: this looks like the feature is functioning as an unusually fine-grained "which point in time is this" identifier -- closer to a lookup key than a physically meaningful recency signal -- and the random forest may simply be exploiting short-range temporal autocorrelation in the target across the time-ordered split, not learning anything about fire effects on water quality. **This result is reported here, not hidden, precisely because it is not yet trustworthy** -- treat the R^2 figures in the table above as a flagged, unresolved finding rather than a confirmed new best score, pending a check against a real physical burn-severity covariate (e.g. dNBR, already in the raw MTBS attributes) instead of a date-only feature.
 
 
+## NWS live-forecast demonstration: is a storm forecast right now? (new dataset, not in data/, not backtestable)
+
+The National Weather Service's gridpoint forecast API (https://api.weather.gov, Strontia Springs Reservoir centroid) is a public dataset not otherwise used in this catalog. **It cannot be tested the way every other public dataset in this catalog was** -- NWS has no historical forecast archive, so there is no way to ask "how well would this have predicted 2023's storms"; it can only ever be demonstrated on the current moment (fetch_nws_forecast.py, snapshot saved to nws_forecast_snapshot.json), the same live-conditions framing dosing_alerts.score_current_conditions already uses for the same reason (this repo's data ends on a fixed date with no "sensor exists, lab result doesn't yet" row to genuinely backtest against).
+
+
+Snapshot fetched 2026-09-25: 14 forecast periods. Highest precipitation probability: **71%** (Monday Night).
+
+
+| period | start | temperature (F) | precip probability | forecast |
+|---|---|---:|---:|---|
+| This Afternoon | 2026-09-25 13:00 | 74 | 64% | Chance Showers And Thunderstorms |
+| Tonight | 2026-09-25 18:00 | 45 | 47% | Chance Showers And Thunderstorms then Partly Cloudy |
+| Saturday | 2026-09-26 06:00 | 79 | 0% | Sunny |
+| Saturday Night | 2026-09-26 18:00 | 48 | 0% | Partly Cloudy |
+| Sunday | 2026-09-27 06:00 | 80 | 12% | Mostly Sunny |
+| Sunday Night | 2026-09-27 18:00 | 51 | 0% | Partly Cloudy |
+| Monday | 2026-09-28 06:00 | 76 | 44% | Partly Sunny then Chance Showers And Thunderstorms |
+| Monday Night | 2026-09-28 18:00 | 49 | 71% | Showers And Thunderstorms Likely |
+| Tuesday | 2026-09-29 06:00 | 66 | 66% | Rain Showers Likely |
+| Tuesday Night | 2026-09-29 18:00 | 46 | 66% | Showers And Thunderstorms Likely |
+| Wednesday | 2026-09-30 06:00 | 69 | 52% | Chance Rain Showers |
+| Wednesday Night | 2026-09-30 18:00 | 45 | 42% | Chance Rain Showers |
+| Thursday | 2026-10-01 06:00 | 75 | 20% | Slight Chance Rain Showers then Sunny |
+| Thursday Night | 2026-10-01 18:00 | 45 | 3% | Mostly Clear |
+
 ## Storm impact on the reservoir's depth profile (Scenario 2: "how do water quality parameters change and distribute by depth")
 
 Storm date (peak flow and turbidity in the sonde's window): 2026-07-18.
