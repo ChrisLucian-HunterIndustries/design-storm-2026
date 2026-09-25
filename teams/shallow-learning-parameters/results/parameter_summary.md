@@ -304,6 +304,22 @@ Same 2026-04-07 to 2026-08-19 window for both sensors (135 lab results).
 | sonde (Strontia) | Conductivity | Alk_mg_L | 7 | -0.404 |
 | USGS gage (upstream) | Specific_Cond_Mean | Alk_mg_L | 4 | 0.486 |
 
+## Full feature-set comparison on the sonde's limited 4-month window (Scenario 1 x Scenario 2: does the sonde add predictive value there?)
+
+Same 2026-04-07 to 2026-08-19 sonde window for every feature set. Row counts are small -- see the caveat below the table before trusting any single R^2 here.
+
+| target | feature set | rows after dropna | random forest R² | SVR R² |
+|---|---|---:|---:|---:|
+| TOC_mg_L | national datasets only | 129 | -0.628 | -0.197 |
+| TOC_mg_L | sonde only | 100 | -1.496 | -1.816 |
+| TOC_mg_L | national + sonde combined | 95 | -3.324 | -2.973 |
+| Alk_mg_L | national datasets only | 133 | 0.121 | -0.486 |
+| Alk_mg_L | sonde only | 98 | -5.695 | -5.848 |
+| Alk_mg_L | national + sonde combined | 96 | -3.156 | -3.710 |
+
+Caveat: this window has only 135 lab results total (see the sonde-as-predictor table above), and dropna/rolling-window warmup plus a 50/50 time-ordered split leaves well under 100 rows per side for some of these fits -- treat any single R^2 here as a rough direction, not a stable score, the same caveat already applied to the lag-day grid search elsewhere in this catalog.
+
+
 ## Storm impact on the reservoir's depth profile (Scenario 2: "how do water quality parameters change and distribute by depth")
 
 Storm date (peak flow and turbidity in the sonde's window): 2026-07-18.
