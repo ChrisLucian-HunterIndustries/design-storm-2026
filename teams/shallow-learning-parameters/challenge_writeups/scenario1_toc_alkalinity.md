@@ -553,22 +553,49 @@ more local signal than ONI above. [`fetch_usdm.py`](../fetch_usdm.py) saves
 a snapshot to `usdm_jefferson.csv`; [`drought_loader.py`](../drought_loader.py)
 aligns each day to its most recently *fully ended* week, avoiding lookahead.
 
-| target | features | held-out R² (full multi-year record, uniform lag) |
-|---|---|---:|
-| TOC_mg_L | without DSCI | 0.334 |
-| TOC_mg_L | with DSCI | **0.653** |
-| Alk_mg_L | without DSCI | 0.234 |
-| Alk_mg_L | with DSCI | **0.259** |
+| target | frame | features | held-out R² |
+|---|---|---|---:|
+| TOC_mg_L | uniform lag | without DSCI | 0.334 |
+| TOC_mg_L | uniform lag | with DSCI | 0.653 |
+| TOC_mg_L | hybrid lag (tuned) | without DSCI | 0.650 |
+| TOC_mg_L | hybrid lag (tuned) | with DSCI | **0.723** |
+| Alk_mg_L | uniform lag | without DSCI | 0.234 |
+| Alk_mg_L | uniform lag | with DSCI | 0.259 |
+| Alk_mg_L | hybrid lag (tuned) | without DSCI | 0.241 |
+| Alk_mg_L | hybrid lag (tuned) | with DSCI | **0.259** |
 
-DSCI is now the single best TOC score in this whole catalog (0.653, beating
-both the hybrid-lag random forest's 0.650 and ONI's 0.512) and a modest real
-gain for alkalinity. **But restricted to the sonde's own 4-month window
-specifically, it barely moves the needle**: TOC goes from -0.628 to -0.591,
-alkalinity from 0.121 to 0.110 — essentially flat, nowhere near rescuing the
-negative scores. DSCI helps the *general, full-record* problem; it does not
-fix the *limited-window* problem, because the limited window's failure mode
-is too few rows for too many parameters, and one more column makes that
-slightly worse, not better.
+DSCI stacks with the tuned lag rather than just repeating its signal — TOC
+on the hybrid-lag frame with DSCI added reaches **0.723**, now the single
+best TOC score in this whole catalog (beating DSCI-on-uniform-lag's 0.653,
+the hybrid-lag random forest's 0.650 alone, and ONI's 0.512). Alkalinity's
+DSCI gain is the same size on both frames (+0.025/+0.018) — a small, real,
+but not frame-dependent improvement. **Does adding ONI on top of DSCI help
+even more?** Tried directly, on both frames:
+
+| target | frame | features | held-out R² |
+|---|---|---|---:|
+| TOC_mg_L | uniform lag | national + ONI + DSCI | 0.655 |
+| TOC_mg_L | hybrid lag (tuned) | national + ONI + DSCI | 0.711 |
+| Alk_mg_L | uniform lag | national + ONI + DSCI | 0.264 |
+| Alk_mg_L | hybrid lag (tuned) | national + ONI + DSCI | 0.255 |
+
+No — combining both public-data ideas is slightly *worse* than DSCI alone on
+the hybrid-lag frame for both targets (TOC 0.723→0.711, Alk 0.259→0.255),
+and only a marginal, likely-noise gain over DSCI alone on the uniform-lag
+frame. This matches the earlier finding that ONI and the tuned lag already
+share some of the same year-to-year wet/dry signal — DSCI appears to
+capture a similar, overlapping signal, so stacking all three doesn't compound
+the way the lag-tuning and DSCI improvements did. **DSCI on the hybrid-lag
+frame alone, not the three-way combination, is the best full-record TOC
+model in this catalog.**
+
+**But restricted to the sonde's own 4-month window specifically, DSCI barely
+moves the needle**: TOC goes from -0.628 to -0.591, alkalinity from 0.121 to
+0.110 — essentially flat, nowhere near rescuing the negative scores. DSCI
+helps the *general, full-record* problem; it does not fix the
+*limited-window* problem, because the limited window's failure mode is too
+few rows for too many parameters, and one more column makes that slightly
+worse, not better.
 
 **Fine-tuning as a technique, not a new dataset, was also tried — and it
 made things worse.** A RandomForestRegressor "base" model trained on every
@@ -590,12 +617,12 @@ The residual correction helps TOC a little and makes alkalinity much worse.
 
 **Honest overall answer:** no public data source, and no fine-tuning
 technique tried here, rescues the limited 4-month window's own numbers. What
-actually helps is (a) DSCI added to the *general* full-record model — a real
-improvement, now this catalog's best TOC score — and (b) for the
-window-specific question, the plain single-column lag-correlation check
-(gage conductance r=0.486, gage turbidity r=0.200) that already survives
-this small a sample where every multi-parameter approach tried, old or new,
-has not. Full numbers in
+actually helps is (a) DSCI added to the *general*, hybrid-lag full-record
+model — a real improvement, now this catalog's best TOC score (0.723) — and
+(b) for the window-specific question, the plain single-column lag-correlation
+check (gage conductance r=0.486, gage turbidity r=0.200) that already
+survives this small a sample where every multi-parameter approach tried, old
+or new, has not. Full numbers in
 [`results/parameter_summary.md`](../results/parameter_summary.md)'s
 "U.S. Drought Monitor experiment" and "Pretrain-then-fine-tune" sections.
 

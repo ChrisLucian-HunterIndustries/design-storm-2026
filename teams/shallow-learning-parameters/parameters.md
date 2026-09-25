@@ -68,10 +68,10 @@ on each target's own hybrid-lag frame: for **TOC, plain random forest stays
 best** (0.650, beating SVR's 0.490, untuned boosting's 0.466, and tuned
 boosting's 0.555 on this same frame) — this was the overall-best TOC score
 for the whole catalog at the time, beating the previous leader (tuned
-boosting on the uniform frame, 0.561); since surpassed by 0.653 with the
-U.S. Drought Monitor's drought-severity index added to the plain uniform-lag
-frame instead (see "Is there public data to fine-tune the limited sonde
-window?" below). For **alkalinity, SVR improves further** to **0.440**
+boosting on the uniform frame, 0.561); since surpassed by adding the U.S.
+Drought Monitor's drought-severity index to this very hybrid-lag frame
+instead (R²=**0.723**, see "Is there public data to fine-tune the limited
+sonde window?" below). For **alkalinity, SVR improves further** to **0.440**
 on the hybrid frame (vs. 0.423 on the uniform frame) — a real gain, but still
 below Gaussian Process regression's 0.516 (see below), which remains the
 best alkalinity score in this catalog even after this round of lag tuning.
@@ -226,12 +226,18 @@ no station there at all — negative on both. The **U.S. Drought Monitor's
 weekly county drought-severity index (DSCI)**, fetched by
 [`fetch_usdm.py`](fetch_usdm.py) and aligned lookahead-safely by
 [`drought_loader.py`](drought_loader.py), is a genuinely new, reachable,
-2000-present public dataset: it's now this catalog's **best TOC score
-(0.653)** on the full multi-year record, but on the sonde's own restricted
-window it barely moves the needle (TOC -0.628 → -0.591, Alk 0.121 → 0.110).
-A pretrain-then-fine-tune experiment (base random forest on every row before
-the sonde's window, corrected by a small residual model using 2 sonde
-columns) also failed to help — the base model never saw 2026 (the
+2000-present public dataset: it stacks with the tuned hybrid lag rather
+than just repeating its signal, reaching **R²=0.723 for TOC** on the
+hybrid-lag frame — now this catalog's **best TOC score**, beating
+DSCI-on-uniform-lag (0.653), the hybrid-lag random forest alone (0.650),
+and ONI (0.512). Combining *both* public-data ideas (ONI + DSCI together)
+does not beat DSCI alone, though — 0.711 on the hybrid frame, slightly
+*worse* than DSCI's own 0.723 — the two apparently capture overlapping
+year-to-year signal rather than compounding. On the sonde's own restricted
+window, DSCI barely moves the needle (TOC -0.628 → -0.591, Alk 0.121 →
+0.110). A pretrain-then-fine-tune experiment (base random forest on every
+row before the sonde's window, corrected by a small residual model using 2
+sonde columns) also failed to help — the base model never saw 2026 (the
 documented drought year) at all, so both scores (-7.171 TOC, -4.087 Alk)
 are worse than the in-window models already reported above. Full numbers in
 `results/parameter_summary.md`'s "U.S. Drought Monitor experiment" and
