@@ -10,9 +10,62 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
+from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
+from sklearn.inspection import permutation_importance
+from sklearn.model_selection import GridSearchCV
 
 import analyze_parameters
+import models
+import models_advanced
 import visualize
+
+
+class _FastRandomForestRegressor(RandomForestRegressor):
+    """Real RandomForestRegressor, tree count capped -- these smoke tests
+    check that main() wires every report/figure together, not model
+    accuracy (test_models.py owns that), so 300 real trees per fit here is
+    wasted wall-clock time."""
+
+    def __init__(self, *, n_estimators: int = 10, **kwargs) -> None:
+        super().__init__(n_estimators=min(n_estimators, 10), **kwargs)
+
+
+class _FastGradientBoostingRegressor(GradientBoostingRegressor):
+    def __init__(self, *, n_estimators: int = 10, **kwargs) -> None:
+        super().__init__(n_estimators=min(n_estimators, 10), **kwargs)
+
+
+def _fast_permutation_importance(estimator, x, y, *, n_repeats: int = 20, **kwargs):
+    """Same permutation_importance, repeat count capped -- fit_svr_baseline
+    always requests 20 repeats per feature, the other real cost in these
+    smoke tests once the tree ensembles above are capped."""
+    return permutation_importance(estimator, x, y, n_repeats=min(n_repeats, 2), **kwargs)
+
+
+class _FastGridSearchCV(GridSearchCV):
+    """Same GridSearchCV, collapsed to one candidate/two folds -- the tuning
+    report only needs best_params_/best_estimator_ to exist, not an
+    exhaustive real search. The base estimator itself is left real (not
+    capped) since GridSearchCV clones/set_params it internally, and a capped
+    subclass would need to replicate sklearn's full get_params() contract to
+    survive that."""
+
+    def __init__(self, estimator, param_grid, **kwargs) -> None:
+        tiny_grid = {key: values[:1] for key, values in param_grid.items()}
+        kwargs["cv"] = 2
+        super().__init__(estimator, tiny_grid, **kwargs)
+
+
+@pytest.fixture(autouse=True)
+def fast_models(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Swap in cheap stand-ins for the estimators main() fits dozens of
+    times over, so these two end-to-end tests stay fast without weakening
+    what they check (file/text structure, not model accuracy)."""
+    monkeypatch.setattr(models, "RandomForestRegressor", _FastRandomForestRegressor)
+    monkeypatch.setattr(models, "GradientBoostingRegressor", _FastGradientBoostingRegressor)
+    monkeypatch.setattr(models_advanced, "RandomForestRegressor", _FastRandomForestRegressor)
+    monkeypatch.setattr(models_advanced, "GridSearchCV", _FastGridSearchCV)
+    monkeypatch.setattr(models, "permutation_importance", _fast_permutation_importance)
 
 
 def _write_synthetic_dataset(data_dir: Path, n_days: int = 90) -> None:
