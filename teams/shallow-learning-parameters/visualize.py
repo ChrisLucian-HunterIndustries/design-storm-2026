@@ -48,6 +48,7 @@ from visualize_experiments import (
     plot_precip_extra_lag_grid,
 )
 from visualize_nws_forecast import plot_nws_forecast_precip
+from visualize_snowmelt import plot_melt_out_regression
 from visualize_robustness import (
     plot_cv_stability,
     plot_delta_target_comparison,
@@ -444,8 +445,9 @@ def main() -> None:
     plot_two_stage_chain(DATA_DIR, sonde_readings, s1 / "35_two_stage_chain.png")
     plot_burn_scar_comparison(DATA_DIR, national_features, lag_days_map, s1 / "36_burn_scar_comparison.png")
     plot_nws_forecast_precip(s3 / "37_nws_forecast_precip.png")
+    plot_melt_out_regression(DATA_DIR, s3 / "38_melt_out_regression.png")
 
-    print(f"Wrote 36 figures + 1 animation to {FIGURES_DIR} (grouped under scenario1/2/3 subfolders)")
+    print(f"Wrote 37 figures + 1 animation to {FIGURES_DIR} (grouped under scenario1/2/3 subfolders)")
 
 
 if __name__ == "__main__":
