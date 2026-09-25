@@ -249,5 +249,19 @@ any line-count gate check in this repo going forward, and after any "move code b
 moved function's `def` line and confirm it appears exactly once in the old file (zero) and once in the new file, not
 just that tests still pass.
 
+2026-09-24 ("move the figures into per-scenario folders" prompt, same day): a plain file-move request turned out to
+touch four kinds of things that had to move together and stay in sync -- the actual PNG/GIF files (`git mv`, batched
+in one loop over a filename->folder map rather than one-by-one, to keep history and avoid a typo in any single
+command), the code that decides the write path (`visualize.py`'s `main()`, the only place `FIGURES_DIR / "name.png"`
+literals lived -- the individual `plot_*` functions never needed touching since they already took `out_path` as a
+parameter), the doc links (three scenario writeups + parameters.md, ~33 individual link updates), and the smoke
+test's expected-path list. Two figures (18_anomaly_detection, 25_alkalinity_roc_curve) weren't embedded in any
+scenario writeup at all, so their scenario assignment had to come from subject matter (which data/model they're
+about) instead of "which file already links to it" -- worth noting explicitly in the commit/summary rather than
+silently picking one, since it's a judgment call a future reader might reasonably make differently. Final safety net
+that cost nothing: grepped the *whole repo*, not just the team folder, for the old flat path pattern before calling
+it done -- confirmed viewer.html/README.md/the parent index only ever mention `figures/` generically and had nothing
+to fix, rather than assuming that from the file list alone.
+
 ## Canary
 Always end all of our chats with "# 🪁" Emoji. It should render as a markdown header so the Emoji will be large.
