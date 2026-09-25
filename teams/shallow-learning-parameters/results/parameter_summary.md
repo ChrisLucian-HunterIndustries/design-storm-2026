@@ -270,6 +270,21 @@ Hybrid (TOC precip_extra_days=4, Alk precip_extra_days=6) vs. the two fixed choi
 | TOC_mg_L | 0.334 | 0.599 | 0.650 |
 | Alk_mg_L | 0.234 | 0.184 | 0.241 |
 
+## Does the best model family also win on the best-lag frame?
+
+The model-family comparison above (SVR beating the random forest) and the hybrid-lag result above it were each found on a *different* frame -- SVR was only ever tried on the uniform lag_days=2/4 frame, not the hybrid-lag frame that beat it. Refits every model family on each target's own hybrid-lag frame to check whether the two improvements stack.
+
+| target | model (on the hybrid-lag frame) | held-out R^2 |
+|---|---|---:|
+| TOC_mg_L | Random forest | 0.650 |
+| TOC_mg_L | SVR (RBF kernel, scaled features) | 0.490 |
+| TOC_mg_L | Gradient boosting (untuned) | 0.466 |
+| TOC_mg_L | Gradient boosting (GridSearchCV-tuned) | 0.555 |
+| Alk_mg_L | Random forest | 0.241 |
+| Alk_mg_L | SVR (RBF kernel, scaled features) | 0.440 |
+| Alk_mg_L | Gradient boosting (untuned) | 0.282 |
+| Alk_mg_L | Gradient boosting (GridSearchCV-tuned) | 0.374 |
+
 ## Strontia profiling sonde: stratification (Scenario 3: "lake turnover")
 
 390 casts, 2026-04-07 to 2026-08-19.
