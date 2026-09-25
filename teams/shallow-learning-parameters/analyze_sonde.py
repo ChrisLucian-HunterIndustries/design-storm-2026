@@ -12,9 +12,20 @@ from __future__ import annotations
 from pathlib import Path
 
 import pandas as pd
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import r2_score
 
 from data_loader import build_dataset, load_dwr_telemetry, load_michigan_creek, load_target, load_usgs_gage
-from models import best_lag, detect_anomalies, fit_random_forest_importance, fit_svr_baseline, lag_correlation_scan
+from models import (
+    RANDOM_STATE,
+    best_lag,
+    detect_anomalies,
+    fit_random_forest_importance,
+    fit_svr_baseline,
+    lag_correlation_scan,
+    time_ordered_split,
+)
 from sonde_loader import build_sonde_dataset, full_depth_casts
 
 SONDE_FEATURES = [
@@ -228,5 +239,121 @@ def _limited_window_model_table(
         "leaves well under 100 rows per side for some of these fits -- treat any single R^2 "
         "here as a rough direction, not a stable score, the same caveat already applied to "
         "the lag-day grid search elsewhere in this catalog.\n"
+    )
+    return lines
+
+
+def compute_residual_finetune_scores(
+    data_dir: Path,
+    sonde_readings: pd.DataFrame,
+    national_features: dict[str, list[str]],
+    lag_days: dict[str, int],
+) -> pd.DataFrame:
+    """Pretrain-then-fine-tune, the literal reading of "is there public data
+    to fine-tune this until we have more [sonde] data": since neither new
+    public data (see analyze_drought.py) nor a bigger national+sonde
+    feature set (see `compute_limited_window_scores`) fixed the sonde
+    window's negative R^2, try the model-side answer instead. A
+    RandomForestRegressor "base" model is trained on the *rest* of the
+    multi-year record (everything strictly before the sonde's own window
+    -- no leakage from or into the fine-tuning data), scored on the sonde
+    window alone (its own time-ordered train/test split). A second, small
+    "fine-tune" step then fits a plain LinearRegression correcting the base
+    model's *residual* using only two sonde columns (the same ones
+    `_sonde_predictor_table` already flagged as the most relevant per
+    target) on the fine-tune split's train half -- three parameters
+    (intercept + two slopes) rather than a 9-feature model, so it can
+    actually be fit from ~65 rows without repeating the earlier
+    overfitting failure."""
+    start = sonde_readings["timestamp"].min().normalize()
+    end = sonde_readings["timestamp"].max().normalize()
+    residual_sonde_cols = {"TOC_mg_L": ["Turbidity_NTU", "temp_diff_c"], "Alk_mg_L": ["Conductivity", "temp_diff_c"]}
+
+    records = []
+    for target in ("TOC_mg_L", "Alk_mg_L"):
+        lag = lag_days[target]
+        cols = national_features[target]
+
+        full_df = build_dataset(data_dir, lag_days=lag).dropna(subset=[*cols, target])
+        background = full_df.loc[full_df.index < start]
+        if len(background) < 10:
+            records.append(
+                {
+                    "target": target,
+                    "background_rows": len(background),
+                    "train_rows": 0,
+                    "test_rows": 0,
+                    "base_r2": float("nan"),
+                    "finetuned_r2": float("nan"),
+                }
+            )
+            continue
+        base_model = RandomForestRegressor(n_estimators=300, random_state=RANDOM_STATE)
+        base_model.fit(background[cols], background[target])
+
+        sonde_window = full_df.loc[start:end]
+        sonde_features = build_sonde_dataset(data_dir, lag_days=lag).loc[start:end]
+        window = sonde_window.join(sonde_features[residual_sonde_cols[target]], how="left")
+        window = window.dropna(subset=[*residual_sonde_cols[target]])
+        train, test = time_ordered_split(window)
+
+        base_pred_train = base_model.predict(train[cols])
+        base_pred_test = base_model.predict(test[cols])
+        base_r2 = r2_score(test[target], base_pred_test)
+
+        residual_train = train[target] - base_pred_train
+        residual_model = LinearRegression()
+        residual_model.fit(train[residual_sonde_cols[target]], residual_train)
+        finetuned_pred_test = base_pred_test + residual_model.predict(test[residual_sonde_cols[target]])
+        finetuned_r2 = r2_score(test[target], finetuned_pred_test)
+
+        records.append(
+            {
+                "target": target,
+                "background_rows": len(background),
+                "train_rows": len(train),
+                "test_rows": len(test),
+                "base_r2": base_r2,
+                "finetuned_r2": finetuned_r2,
+            }
+        )
+    return pd.DataFrame.from_records(records)
+
+
+def _residual_finetune_table(
+    data_dir: Path,
+    sonde_readings: pd.DataFrame,
+    national_features: dict[str, list[str]],
+    lag_days: dict[str, int],
+) -> list[str]:
+    scores = compute_residual_finetune_scores(data_dir, sonde_readings, national_features, lag_days)
+    lines = [
+        "Base model: RandomForestRegressor on national features, trained on every record row "
+        "*before* the sonde's window (no leakage). Fine-tune: LinearRegression correcting the "
+        "base model's residual using 2 sonde columns, fit on the window's own train half "
+        "only.\n",
+        "| target | background rows | fine-tune train/test rows | base-only R² | base + fine-tune R² |",
+        "|---|---:|---|---:|---:|",
+    ]
+    for row in scores.itertuples():
+        if row.background_rows < 10:
+            lines.append(f"| {row.target} | {row.background_rows} | n/a (too little background history) | n/a | n/a |")
+            continue
+        lines.append(
+            f"| {row.target} | {row.background_rows} | {row.train_rows}/{row.test_rows} | "
+            f"{_fmt(row.base_r2)} | {_fmt(row.finetuned_r2)} |"
+        )
+    lines.append(
+        "\nBoth columns are far more negative than the earlier restricted-window comparison "
+        "(which let the sonde window's own first half into training) -- the base model never "
+        "sees 2026 at all (background = every row *before* 2026-04-07), and 2026 is guide.md's "
+        "documented drought year (peak SWE 7.9in vs. 2024's 20.9in), so extrapolating forward "
+        "across that boundary is harder than the earlier tables' in-window split. The residual "
+        "correction helps TOC a little and makes alkalinity much worse -- with a base model this "
+        "far off, a 2-feature linear correction just adds its own noise on top rather than fixing "
+        "a small, well-behaved error. Honest conclusion: this pretrain-then-fine-tune framing does "
+        "not rescue the limited window either -- see the section above for the actual, still-modest "
+        "answer (a single-column lag correlation survives this data volume where any of these "
+        "multi-parameter approaches do not).\n"
     )
     return lines

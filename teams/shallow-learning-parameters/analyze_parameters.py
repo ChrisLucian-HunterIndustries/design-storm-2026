@@ -15,11 +15,13 @@ import pandas as pd
 
 from analyze_advanced import build_report_sections
 from analyze_dosing import build_dosing_alert_section
+from analyze_drought import build_drought_experiment_section
 from analyze_enso import build_enso_experiment_section
 from analyze_lag_experiments import build_lag_experiments_section
 from analyze_sonde import (
     _anomaly_detection_table,
     _limited_window_model_table,
+    _residual_finetune_table,
     _sonde_predictor_table,
     _storm_profile_table,
     _stratification_table,
@@ -366,6 +368,17 @@ def main() -> None:
     )
 
     lines.append(
+        "\n## Pretrain-then-fine-tune: base model on the full record, corrected with sonde data "
+        "(Scenario 1: \"fine-tune this until we have more [sonde] data\")\n"
+    )
+    lines += _residual_finetune_table(
+        DATA_DIR,
+        sonde_readings,
+        {"TOC_mg_L": TOC_FEATURES, "Alk_mg_L": ALK_FEATURES},
+        {"TOC_mg_L": 2, "Alk_mg_L": 4},
+    )
+
+    lines.append(
         "\n## Storm impact on the reservoir's depth profile (Scenario 2: \"how do water quality "
         "parameters change and distribute by depth\")\n"
     )
@@ -377,6 +390,13 @@ def main() -> None:
     lines += build_report_sections(DATA_DIR, df_toc, TOC_FEATURES, df_alk, ALK_FEATURES, all_features)
 
     lines += build_enso_experiment_section(DATA_DIR)
+
+    lines += build_drought_experiment_section(
+        DATA_DIR,
+        sonde_readings,
+        {"TOC_mg_L": TOC_FEATURES, "Alk_mg_L": ALK_FEATURES},
+        {"TOC_mg_L": 2, "Alk_mg_L": 4},
+    )
 
     output_path = RESULTS_DIR / "parameter_summary.md"
     output_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
