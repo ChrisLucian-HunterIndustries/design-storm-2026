@@ -19,6 +19,7 @@ from analyze_dosing import build_dosing_alert_section
 from analyze_drought import build_drought_experiment_section
 from analyze_enso import build_enso_experiment_section
 from analyze_lag_experiments import build_lag_experiments_section
+from analyze_nws_forecast import build_nws_forecast_section
 from analyze_robustness import build_robustness_section
 from analyze_sonde import (
     _anomaly_detection_table,
@@ -392,6 +393,8 @@ def main() -> None:
         {"TOC_mg_L": TOC_FEATURES, "Alk_mg_L": ALK_FEATURES},
         {"TOC_mg_L": 2, "Alk_mg_L": 4},
     )
+
+    lines += build_nws_forecast_section()
 
     lines.append(
         "\n## Storm impact on the reservoir's depth profile (Scenario 2: \"how do water quality "
