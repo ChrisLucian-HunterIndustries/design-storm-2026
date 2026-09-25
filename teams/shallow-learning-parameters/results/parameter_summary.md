@@ -408,6 +408,24 @@ The jump above is large enough to be suspicious on its own terms -- large enough
 A plain day-count since the record's start, and the same day-count measured only from the "403" fire's own date (no earlier fire history), both score *below* the no-feature baseline for TOC and only marginally above it for alkalinity -- neither reproduces the jump. Only `days_since_fire`'s actual shape (piecewise-monotonic, reset at each of the ten fires' ignition dates found above) produces the large improvement. Honest reading: this looks like the feature is functioning as an unusually fine-grained "which point in time is this" identifier -- closer to a lookup key than a physically meaningful recency signal -- and the random forest may simply be exploiting short-range temporal autocorrelation in the target across the time-ordered split, not learning anything about fire effects on water quality. **This result is reported here, not hidden, precisely because it is not yet trustworthy** -- treat the R^2 figures in the table above as a flagged, unresolved finding rather than a confirmed new best score, pending a check against a real physical burn-severity covariate (e.g. dNBR, already in the raw MTBS attributes) instead of a date-only feature.
 
 
+## Denver Water's own outflow, combined with fire history (Scenario 1: "combine fire data with inflow and outflow data from Denver's web API")
+
+COND20CO ("DENVER WATER CONDUIT NO 20") and COND26CO ("DW CONDUIT 26", at the dam itself) are Denver Water's own measured discharge out of Strontia Springs Reservoir, telemetered through the same public Colorado DWR CDSS REST API this repo already uses for reservoir storage (see water-system-3d/fetch_storage_history.py) -- a different parameter (DISCHRG) and different stations. Their sum, `Outflow_CFS`, is combined here with the existing inflow feature (`Flow_CFS`, the river gage above the reservoir) already in this catalog's baseline, and with the MTBS burn-scar recency feature (`days_since_fire`, see the section above) from the same drainage basin's real fire history:
+
+| target | features | held-out R² |
+|---|---|---:|
+| TOC_mg_L | baseline | 0.334 |
+| TOC_mg_L | + Outflow_CFS | 0.385 |
+| TOC_mg_L | + days_since_fire | 0.654 |
+| TOC_mg_L | + Outflow_CFS + days_since_fire | 0.668 |
+| Alk_mg_L | baseline | 0.234 |
+| Alk_mg_L | + Outflow_CFS | 0.251 |
+| Alk_mg_L | + days_since_fire | 0.489 |
+| Alk_mg_L | + Outflow_CFS + days_since_fire | 0.504 |
+
+`+ Outflow_CFS` alone is a genuine, modest improvement over baseline for both targets -- a real measured release, distinct information from the upstream inflow gage already in the baseline features. The much larger jump from adding `days_since_fire` (and the negligible extra gain from combining it with outflow) carries the same caveat raised in the burn-scar section above: it is flagged as an unresolved, not-yet-trustworthy finding, not a confirmed result -- see that section's time-index-artifact controls before treating the combined-feature R^2 here as real.
+
+
 ## NWS live-forecast demonstration: is a storm forecast right now? (new dataset, not in data/, not backtestable)
 
 The National Weather Service's gridpoint forecast API (https://api.weather.gov, Strontia Springs Reservoir centroid) is a public dataset not otherwise used in this catalog. **It cannot be tested the way every other public dataset in this catalog was** -- NWS has no historical forecast archive, so there is no way to ask "how well would this have predicted 2023's storms"; it can only ever be demonstrated on the current moment (fetch_nws_forecast.py, snapshot saved to nws_forecast_snapshot.json), the same live-conditions framing dosing_alerts.score_current_conditions already uses for the same reason (this repo's data ends on a fixed date with no "sensor exists, lab result doesn't yet" row to genuinely backtest against).
