@@ -66,9 +66,12 @@ Does the better lag also combine with the better model family? Only for
 alkalinity. Refitting SVR/gradient boosting (untuned and GridSearchCV-tuned)
 on each target's own hybrid-lag frame: for **TOC, plain random forest stays
 best** (0.650, beating SVR's 0.490, untuned boosting's 0.466, and tuned
-boosting's 0.555 on this same frame) — this is a new overall-best TOC score
-for the whole catalog, beating the previous leader (tuned boosting on the
-uniform frame, 0.561). For **alkalinity, SVR improves further** to **0.440**
+boosting's 0.555 on this same frame) — this was the overall-best TOC score
+for the whole catalog at the time, beating the previous leader (tuned
+boosting on the uniform frame, 0.561); since surpassed by 0.653 with the
+U.S. Drought Monitor's drought-severity index added to the plain uniform-lag
+frame instead (see "Is there public data to fine-tune the limited sonde
+window?" below). For **alkalinity, SVR improves further** to **0.440**
 on the hybrid frame (vs. 0.423 on the uniform frame) — a real gain, but still
 below Gaussian Process regression's 0.516 (see below), which remains the
 best alkalinity score in this catalog even after this round of lag tuning.
@@ -214,6 +217,26 @@ looks like ONI captures some of the same year-to-year wet/dry signal the
 tuned lag already recovers on its own. Full numbers in
 `results/parameter_summary.md`'s "NOAA ENSO experiment" section.
 
+Is there public data to fine-tune Scenario 1's limited 4-month sonde window
+until we have more sonde data? Checked two real candidates for a location
+substitute first — the next USGS gage downstream of the dam (`06701900`)
+only has sparse discrete grab samples through 2013, no turbidity, no 2026
+coverage; a Water Quality Portal station search around the reservoir found
+no station there at all — negative on both. The **U.S. Drought Monitor's
+weekly county drought-severity index (DSCI)**, fetched by
+[`fetch_usdm.py`](fetch_usdm.py) and aligned lookahead-safely by
+[`drought_loader.py`](drought_loader.py), is a genuinely new, reachable,
+2000-present public dataset: it's now this catalog's **best TOC score
+(0.653)** on the full multi-year record, but on the sonde's own restricted
+window it barely moves the needle (TOC -0.628 → -0.591, Alk 0.121 → 0.110).
+A pretrain-then-fine-tune experiment (base random forest on every row before
+the sonde's window, corrected by a small residual model using 2 sonde
+columns) also failed to help — the base model never saw 2026 (the
+documented drought year) at all, so both scores (-7.171 TOC, -4.087 Alk)
+are worse than the in-window models already reported above. Full numbers in
+`results/parameter_summary.md`'s "U.S. Drought Monitor experiment" and
+"Pretrain-then-fine-tune" sections.
+
 ## Engineered features (inputs to every model below)
 
 Same recipe as `guide.md` section 7, implemented in
@@ -323,8 +346,8 @@ See [`challenge_writeups/challenge_writeup.md`](challenge_writeups/challenge_wri
 cd teams/shallow-learning-parameters
 python analyze_parameters.py   # writes results/parameter_summary.md and results/predictions.json
 python visualize.py            # writes figures/*.png and figures/*.gif
-python -m pytest -q            # unit tests for data_loader.py, models.py, and sonde_loader.py
+python -m pytest -q            # unit tests for data_loader.py, models.py, sonde_loader.py, enso_loader.py, drought_loader.py
 ```
 
 Requires `pandas`, `scikit-learn`, `matplotlib`, `pillow`, `openpyxl`,
-`pytest` (see `requirements.txt`).
+`requests`, `pytest` (see `requirements.txt`).

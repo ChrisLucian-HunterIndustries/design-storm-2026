@@ -91,12 +91,14 @@ results, shifted 2 days (TOC) / 4 days (alkalinity) as Jake's own models do.
 > for alkalinity. Refitting SVR and gradient boosting (untuned and
 > GridSearchCV-tuned) on each target's own hybrid-lag frame: for **TOC,
 > plain random forest stays best** (0.650, vs. SVR's 0.490 and tuned
-> boosting's 0.555 on the same frame) — a new overall-best TOC score for
-> this whole catalog. For **alkalinity, SVR improves further to 0.440** on
-> the hybrid frame (vs. 0.423 on the uniform frame) — but that's still
-> below Gaussian Process regression's 0.516 (see the model-family section
-> further down), which remains the best alkalinity score here even after
-> this round of lag tuning.
+> boosting's 0.555 on the same frame) — the best TOC score in this catalog
+> at the time, since surpassed by 0.653 with the U.S. Drought Monitor
+> feature added to the plain uniform-lag frame instead (see "Is there
+> public data to fine-tune this?" below). For **alkalinity, SVR improves
+> further to 0.440** on the hybrid frame (vs. 0.423 on the uniform frame)
+> — but that's still below Gaussian Process regression's 0.516 (see the
+> model-family section further down), which remains the best alkalinity
+> score here even after this round of lag tuning.
 
 ![Model family comparison on the hybrid-lag frame](../figures/scenario1_toc_alkalinity/29_hybrid_lag_model_family.png)
 
@@ -507,8 +509,8 @@ mixed story — evidence it helps, not just an assumption:
 |---|---|---:|---:|
 | TOC_mg_L | uniform lag (this catalog's baseline) | 0.334 | **0.512** |
 | Alk_mg_L | uniform lag (this catalog's baseline) | 0.234 | **0.266** |
-| TOC_mg_L | hybrid lag (this catalog's current best) | 0.650 | 0.642 |
-| Alk_mg_L | hybrid lag (this catalog's current best) | 0.241 | **0.261** |
+| TOC_mg_L | hybrid lag (this catalog's best at the time; since surpassed, see below) | 0.650 | 0.642 |
+| Alk_mg_L | hybrid lag (this catalog's best at the time; since surpassed, see below) | 0.241 | **0.261** |
 
 **It works, with a caveat.** On the plain uniform-lag baseline, ONI is a
 large, real improvement for TOC (+0.178 R²) — nearly matching what tuning
@@ -523,6 +525,79 @@ recovers on its own, not a fully independent one. Full numbers in
 ENSO experiment" section.
 
 ![NOAA Oceanic Nino Index: does it help?](../figures/scenario1_toc_alkalinity/30_enso_experiment.png)
+
+## Is there public data to fine-tune the limited 4-month sonde window until we have more?
+
+A direct follow-up to the section above: does anything — new public data, or
+a modeling technique rather than new data — rescue the sonde window's
+feature-set comparison, where every option (national, sonde, combined) came
+back at or below a mean-only baseline?
+
+**A literal substitute for the sonde's own location doesn't exist publicly.**
+Two real candidates were checked, not assumed away: the next USGS gage
+downstream of Strontia Springs Dam (`06701900`, "SOUTH PLATTE RIVER BLW BRUSH
+CRK NEAR TRUMBULL, CO") only has sparse discrete grab samples (specific
+conductance: 29 samples 2002–2013; temperature: 26 samples 2002–2006; pH: 1
+sample) — no continuous turbidity at all, and no coverage past 2013, so it
+can't extend into the sonde's 2026 window. A EPA/USGS Water Quality Portal
+station search in a bounding box around Strontia Springs Reservoir itself
+turned up no monitoring station there at all — Denver Water's sonde appears
+to be the only water-quality instrument at that exact location, public or
+not.
+
+**But a different public dataset helps the *general* model a lot.** The
+U.S. Drought Monitor's weekly county drought-severity index (DSCI,
+Jefferson County CO, https://usdmdataservices.unl.edu) is public, reachable,
+and covers 2000-present — weekly and county-specific, a higher-frequency,
+more local signal than ONI above. [`fetch_usdm.py`](../fetch_usdm.py) saves
+a snapshot to `usdm_jefferson.csv`; [`drought_loader.py`](../drought_loader.py)
+aligns each day to its most recently *fully ended* week, avoiding lookahead.
+
+| target | features | held-out R² (full multi-year record, uniform lag) |
+|---|---|---:|
+| TOC_mg_L | without DSCI | 0.334 |
+| TOC_mg_L | with DSCI | **0.653** |
+| Alk_mg_L | without DSCI | 0.234 |
+| Alk_mg_L | with DSCI | **0.259** |
+
+DSCI is now the single best TOC score in this whole catalog (0.653, beating
+both the hybrid-lag random forest's 0.650 and ONI's 0.512) and a modest real
+gain for alkalinity. **But restricted to the sonde's own 4-month window
+specifically, it barely moves the needle**: TOC goes from -0.628 to -0.591,
+alkalinity from 0.121 to 0.110 — essentially flat, nowhere near rescuing the
+negative scores. DSCI helps the *general, full-record* problem; it does not
+fix the *limited-window* problem, because the limited window's failure mode
+is too few rows for too many parameters, and one more column makes that
+slightly worse, not better.
+
+**Fine-tuning as a technique, not a new dataset, was also tried — and it
+made things worse.** A RandomForestRegressor "base" model trained on every
+record row *before* the sonde's window (728-785 rows, no leakage) was scored
+on the window alone, then a small LinearRegression "fine-tune" step
+corrected its residual using just 2 sonde columns fit on the window's own
+train half:
+
+| target | background rows | fine-tune train/test rows | base-only R² | base + fine-tune R² |
+|---|---:|---|---:|---:|
+| TOC_mg_L | 728 | 48/49 | -7.171 | -4.716 |
+| Alk_mg_L | 785 | 49/49 | -4.087 | -12.354 |
+
+Both are far worse than the in-window comparison's own numbers, because the
+background model never sees 2026 at all — and 2026 is the documented drought
+year (peak SWE 7.9in vs. 2024's 20.9in), so extrapolating forward across that
+boundary is harder than letting the window's own first half into training.
+The residual correction helps TOC a little and makes alkalinity much worse.
+
+**Honest overall answer:** no public data source, and no fine-tuning
+technique tried here, rescues the limited 4-month window's own numbers. What
+actually helps is (a) DSCI added to the *general* full-record model — a real
+improvement, now this catalog's best TOC score — and (b) for the
+window-specific question, the plain single-column lag-correlation check
+(gage conductance r=0.486, gage turbidity r=0.200) that already survives
+this small a sample where every multi-parameter approach tried, old or new,
+has not. Full numbers in
+[`results/parameter_summary.md`](../results/parameter_summary.md)'s
+"U.S. Drought Monitor experiment" and "Pretrain-then-fine-tune" sections.
 
 ## What the deck asks for that isn't here
 
