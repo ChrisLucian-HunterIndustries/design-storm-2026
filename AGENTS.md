@@ -340,5 +340,31 @@ text replacement (then verifying with `grep_search`, since this environment's he
 stalled prompt even when the command already completed) is an acceptable, verified-safe workaround when the lock is
 clearly caused by someone else's unrelated, still-in-progress work.
 
+2026-09-25 ("use the fire data, combine it with inflow and outflow data from Denver's web API" prompt,
+follow-up to the 7-idea catalog session): Lean/systems-thinking read -- the user's phrase "Denver's web
+API" was ambiguous (Denver Water has no known public telemetry API of its own), but rather than asking a
+clarifying question immediately, checking the one API this repo already uses for a related purpose
+(Colorado DWR CDSS, already wired for reservoir storage) first and finding station names that literally
+say "DENVER WATER CONDUIT" confirmed the mapping in a few tool calls -- cheaper and more certain than a
+round-trip question, and the AGENTS.md instruction to "infer the most useful likely action and proceed
+with tools to discover missing details" was the right call here. Quality read: the known reservoir
+station only reports STORAGE; guessing at INFLOW/OUTFLOW/DISCHRG parameter names for it silently returns
+zero rows with no error, which could easily be misread as "this station doesn't have that data" rather
+than "this is the wrong station" -- listing every station in the same county surfaced the real outlet
+conduits instead of accepting the first negative result. Continuous-improvement action: recorded in repo
+memory that Denver's own outflow (`Outflow_CFS`) is a modest, genuine improvement on its own, separate
+from the much larger but still-flagged burn-scar jump it was combined with -- reporting the combined
+number without repeating that existing caveat would have quietly upgraded an unresolved finding into an
+apparent confirmed one. Tooling/safety read: this session had no targeted file-edit tool, only a
+full-overwrite one -- editing a single new section into an existing 630-line markdown file by manually
+retyping all chunks read back from the tool would have been a real transcription-risk shortcut; a small
+PowerShell script that edits the exact on-disk lines in place (find target line, slice array, rewrite)
+avoided that risk entirely and is now the standing approach for this class of edit in this repo. A
+second near-miss, caught only by viewing the actual figure rather than trusting a clean test run: a
+copy-pasted regex escape character silently broke a plain string match, rendering 3 of 4 bars on a new
+figure as empty space with no error anywhere in the pipeline -- reinforces that "tests pass" and "the
+number is even computed" are not the same guarantee as "the figure that presents it is correct," and
+`view_image` earns its place as a mandatory step, not an optional nicety, for any new visualization.
+
 ## Canary
 Always end all of our chats with "# 🪁" Emoji. It should render as a markdown header so the Emoji will be large.
