@@ -626,6 +626,45 @@ or new, has not. Full numbers in
 [`results/parameter_summary.md`](../results/parameter_summary.md)'s
 "U.S. Drought Monitor experiment" and "Pretrain-then-fine-tune" sections.
 
+## Combining fire data with Denver Water's own inflow and outflow
+
+A follow-up to the burn-scar experiment above: `Flow_CFS` (the USGS/DWR gage
+above the reservoir, already a baseline feature) is this catalog's inflow
+signal. Denver Water also telemeters its own **outflow** from Strontia
+Springs Reservoir, through the same public Colorado DWR CDSS REST API this
+repo already uses for reservoir storage (`water-system-3d/fetch_storage_history.py`):
+`COND20CO` ("DENVER WATER CONDUIT NO 20") and `COND26CO` ("DW CONDUIT 26", at
+the dam itself), the two conduits carrying water to the Foothills Treatment
+Plant -- the same plant `data/FoothillsInfluent.csv` is drawn from.
+[`fetch_denver_outflow.py`](../fetch_denver_outflow.py) saves a snapshot to
+`denver_conduit_outflow.json`; [`denver_outflow_loader.py`](../denver_outflow_loader.py)
+sums both conduits into `Outflow_CFS`.
+
+[`analyze_denver_outflow.py`](../analyze_denver_outflow.py) combines this new
+outflow feature with the existing `days_since_fire` burn-scar feature from
+the section above, same random forest, same held-out split:
+
+![Denver Water's own outflow + fire history](../figures/scenario1_toc_alkalinity/39_denver_outflow_fire.png)
+
+| target | features | held-out R² |
+|---|---|---:|
+| TOC_mg_L | baseline | 0.334 |
+| TOC_mg_L | + Outflow_CFS | 0.385 |
+| TOC_mg_L | + days_since_fire | 0.654 |
+| TOC_mg_L | + Outflow_CFS + days_since_fire | 0.668 |
+| Alk_mg_L | baseline | 0.234 |
+| Alk_mg_L | + Outflow_CFS | 0.251 |
+| Alk_mg_L | + days_since_fire | 0.489 |
+| Alk_mg_L | + Outflow_CFS + days_since_fire | 0.504 |
+
+`+ Outflow_CFS` alone is a genuine, if modest, improvement for both targets
+(+0.051 TOC, +0.017 Alk) -- a real measured release, distinct information
+from the upstream inflow gage already in the baseline. The much larger jump
+from `days_since_fire`, and the negligible extra gain from combining it with
+outflow, carry the same caveat as the burn-scar section above: flagged as an
+unresolved, not-yet-trustworthy finding (likely a time-index artifact, not a
+genuine fire effect), not a confirmed result.
+
 ## What the deck asks for that isn't here
 
 Nothing, as it turns out — every bullet in this scenario now has at least
