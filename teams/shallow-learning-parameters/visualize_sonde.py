@@ -1,7 +1,7 @@
-"""Figures 13-16: the Strontia profiling sonde (stratification, depth
-profiles, storm impact, sonde-vs-gage comparison). Split out of
-visualize.py to keep files under the repo's file-length gate; see
-visualize.py for the entry point (`main()`).
+"""Figures 13-16, 31: the Strontia profiling sonde (stratification, depth
+profiles, storm impact, sonde-vs-gage comparison, limited-window model
+comparison). Split out of visualize.py to keep files under the repo's
+file-length gate; see visualize.py for the entry point (`main()`).
 """
 from __future__ import annotations
 
@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+from analyze_sonde import compute_limited_window_scores
 from data_loader import load_target, load_usgs_gage
 from models import best_lag, lag_correlation_scan
 from sonde_loader import assign_cast_ids, full_depth_casts
@@ -158,6 +159,41 @@ def plot_sonde_vs_gage_comparison(
     axes[1].set_ylabel("correlation at best lag")  # bars are r, not raw conductivity -- a negative bar is a valid r, not a sensor error
 
     fig.suptitle(f"Sonde vs. upstream gage, same window ({start.date()} to {end.date()})")
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=140)
+    plt.close(fig)
+
+
+def plot_limited_window_comparison(
+    data_dir: Path,
+    sonde_readings: pd.DataFrame,
+    national_features: dict[str, list[str]],
+    lag_days: dict[str, int],
+    out_path: Path,
+) -> None:
+    """Fig 31 (Scenario 1 x Scenario 2): grouped bars of random forest and
+    SVR held-out R^2 for each target, across the three feature sets
+    (national only / sonde only / combined), all fit on the sonde's own
+    ~4-month window -- see analyze_sonde.compute_limited_window_scores for
+    the underlying numbers and the small-sample caveat."""
+    scores = compute_limited_window_scores(data_dir, sonde_readings, national_features, lag_days)
+    feature_sets = list(scores["feature_set"].unique())
+    x = np.arange(len(feature_sets))
+    width = 0.35
+
+    fig, axes = plt.subplots(1, 2, figsize=(11, 4.5), sharey=True)
+    for ax, target in zip(axes, ("TOC_mg_L", "Alk_mg_L")):
+        target_rows = scores[scores["target"] == target].set_index("feature_set").loc[feature_sets]
+        ax.bar(x - width / 2, target_rows["rf_r2"], width, label="random forest", color="tab:blue")
+        ax.bar(x + width / 2, target_rows["svr_r2"], width, label="SVR", color="tab:orange")
+        ax.axhline(0, color="black", linewidth=0.8)
+        ax.set_xticks(x)
+        ax.set_xticklabels([label.replace(" ", "\n", 1) for label in feature_sets], fontsize=8)
+        ax.set_title(target)
+    axes[0].set_ylabel("held-out R²")
+    axes[0].legend(fontsize=8)
+
+    fig.suptitle("Limited 4-month sonde window: feature-set comparison")
     fig.tight_layout()
     fig.savefig(out_path, dpi=140)
     plt.close(fig)

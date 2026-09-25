@@ -18,6 +18,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from data_loader import load_target
+
 COLUMN_RENAME = {
     "Time stamp": "timestamp",
     "Temp C": "Temp_C",
@@ -108,4 +110,38 @@ def full_depth_casts(casts: pd.DataFrame, min_readings: int = 20) -> pd.DataFram
     that would otherwise look like a shallow water column rather than an
     incomplete one. Use this before comparing profiles across casts."""
     return casts[casts["n_readings"] >= min_readings]
+
+
+def engineer_sonde_features(daily: pd.DataFrame, casts: pd.DataFrame) -> pd.DataFrame:
+    """Rolling-window versions of the sonde's daily surface features, plus a
+    daily stratification signal from the casts -- the sonde equivalent of
+    data_loader.engineer_predictor_features, so a sonde-only feature set can
+    be built and compared against the national-dataset feature set on equal
+    footing (rolling context, not just one raw daily value per column)."""
+    features = daily.copy()
+    features["roll_turbidity_3"] = daily["Turbidity_NTU"].rolling(3).mean()
+    features["roll_conductivity_3"] = daily["Conductivity"].rolling(3).mean()
+
+    stratification = casts.groupby("date")["temp_diff_c"].mean()
+    stratification.index.name = "DATE"
+    return features.join(stratification)
+
+
+def build_sonde_dataset(data_dir: Path, lag_days: int = 2) -> pd.DataFrame:
+    """Sonde equivalent of data_loader.build_dataset: Foothills lab results
+    left-joined with sonde-derived features shifted `lag_days` forward.
+
+    Feature rows only exist within the sonde's own coverage window
+    (2026-04-07 to 2026-08-19, ~4 months) -- callers answering Scenario 1's
+    "introduce the sonde" bullet on that limited window should restrict the
+    returned frame's rows to that range before fitting anything, the same
+    way `analyze_sonde._sonde_predictor_table` already restricts the gage
+    comparison to a fair, matching window."""
+    target = load_target(data_dir)
+    readings = load_sonde_readings(data_dir)
+    casts = cast_summary(readings)
+    daily = daily_surface_features(readings)
+    features = engineer_sonde_features(daily, casts)
+    shifted = features.shift(lag_days, freq="D")
+    return target.join(shifted, how="left")
 

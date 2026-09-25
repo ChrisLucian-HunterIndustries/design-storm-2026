@@ -13,9 +13,21 @@ from pathlib import Path
 
 import pandas as pd
 
-from data_loader import load_dwr_telemetry, load_michigan_creek, load_target, load_usgs_gage
-from models import best_lag, detect_anomalies, lag_correlation_scan
-from sonde_loader import full_depth_casts
+from data_loader import build_dataset, load_dwr_telemetry, load_michigan_creek, load_target, load_usgs_gage
+from models import best_lag, detect_anomalies, fit_random_forest_importance, fit_svr_baseline, lag_correlation_scan
+from sonde_loader import build_sonde_dataset, full_depth_casts
+
+SONDE_FEATURES = [
+    "Temp_C",
+    "Conductivity",
+    "pH",
+    "Turbidity_NTU",
+    "Chl_ugL",
+    "ODO_mgL",
+    "roll_turbidity_3",
+    "roll_conductivity_3",
+    "temp_diff_c",
+]
 
 
 def _fmt(value: float) -> str:
@@ -134,4 +146,87 @@ def _anomaly_detection_table(data_dir: Path) -> list[str]:
             lines.append(
                 f"| {date.date()} | {_fmt(features.loc[date, 'SWE'])} | {_fmt(features.loc[date, 'diff_prev'])} |"
             )
+    return lines
+
+
+def compute_limited_window_scores(
+    data_dir: Path,
+    sonde_readings: pd.DataFrame,
+    national_features: dict[str, list[str]],
+    lag_days: dict[str, int],
+) -> pd.DataFrame:
+    """Scenario 1's "introduce real-time Strontia sonde data" bullet, run as
+    a full multi-feature model rather than `_sonde_predictor_table`'s
+    single-column correlation check: restricted to the sonde's own ~4-month
+    coverage window, does the sonde add predictive value over the national
+    datasets alone, and does combining both beat either by itself? Every
+    feature set is fit on the exact same restricted date range so the
+    comparison is fair -- the national-only row here scores far below its
+    full-record R^2 elsewhere in this file, because it only sees ~4 months
+    of data here instead of the full multi-year record. Fits both a random
+    forest and an SVR (scaled) per feature set -- with this few rows and
+    this many features, a random forest alone overfits badly (every score
+    negative) and would understate what this limited window can support;
+    SVR's regularization is a fairer second opinion, matching the model
+    family finding elsewhere in this catalog that SVR beats random forest
+    on the full record too. Returns one row per (target, feature set) so
+    both the report table and the comparison figure share one computation."""
+    start = sonde_readings["timestamp"].min().normalize()
+    end = sonde_readings["timestamp"].max().normalize()
+
+    records = []
+    for target in ("TOC_mg_L", "Alk_mg_L"):
+        lag = lag_days[target]
+        national_cols = national_features[target]
+
+        national_df = build_dataset(data_dir, lag_days=lag).loc[start:end]
+        sonde_df = build_sonde_dataset(data_dir, lag_days=lag).loc[start:end]
+        combined_df = national_df.join(sonde_df[SONDE_FEATURES], how="left")
+
+        for label, df, cols in [
+            ("national datasets only", national_df, national_cols),
+            ("sonde only", sonde_df, SONDE_FEATURES),
+            ("national + sonde combined", combined_df, [*national_cols, *SONDE_FEATURES]),
+        ]:
+            n_rows = len(df.dropna(subset=[*cols, target]))
+            rf_r2 = float("nan") if n_rows < 10 else fit_random_forest_importance(df, cols, target).r2
+            svr_r2 = float("nan") if n_rows < 10 else fit_svr_baseline(df, cols, target).r2
+            records.append(
+                {"target": target, "feature_set": label, "n_rows": n_rows, "rf_r2": rf_r2, "svr_r2": svr_r2}
+            )
+    return pd.DataFrame.from_records(records)
+
+
+def _limited_window_model_table(
+    data_dir: Path,
+    sonde_readings: pd.DataFrame,
+    national_features: dict[str, list[str]],
+    lag_days: dict[str, int],
+) -> list[str]:
+    """Markdown table wrapping `compute_limited_window_scores` -- see that
+    function's docstring for the actual analysis and caveats."""
+    scores = compute_limited_window_scores(data_dir, sonde_readings, national_features, lag_days)
+    start = sonde_readings["timestamp"].min().normalize()
+    end = sonde_readings["timestamp"].max().normalize()
+
+    lines = [
+        f"Same {start.date()} to {end.date()} sonde window for every feature set. Row "
+        "counts are small -- see the caveat below the table before trusting any single "
+        "R^2 here.\n",
+        "| target | feature set | rows after dropna | random forest R² | SVR R² |",
+        "|---|---|---:|---:|---:|",
+    ]
+    for row in scores.itertuples():
+        if row.n_rows < 10:
+            lines.append(f"| {row.target} | {row.feature_set} | {row.n_rows} | n/a (too few rows) | n/a |")
+        else:
+            lines.append(f"| {row.target} | {row.feature_set} | {row.n_rows} | {_fmt(row.rf_r2)} | {_fmt(row.svr_r2)} |")
+
+    lines.append(
+        "\nCaveat: this window has only 135 lab results total (see the sonde-as-predictor "
+        "table above), and dropna/rolling-window warmup plus a 50/50 time-ordered split "
+        "leaves well under 100 rows per side for some of these fits -- treat any single R^2 "
+        "here as a rough direction, not a stable score, the same caveat already applied to "
+        "the lag-day grid search elsewhere in this catalog.\n"
+    )
     return lines

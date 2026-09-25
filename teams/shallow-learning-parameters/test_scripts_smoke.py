@@ -202,6 +202,7 @@ def test_visualize_writes_all_figures(
         "scenario1_toc_alkalinity/28_precip_extra_lag_grid.png",
         "scenario1_toc_alkalinity/29_hybrid_lag_model_family.png",
         "scenario1_toc_alkalinity/30_enso_experiment.png",
+        "scenario1_toc_alkalinity/31_limited_window_comparison.png",
     ]
     for name in expected:
         assert (figures_dir / name).exists(), name

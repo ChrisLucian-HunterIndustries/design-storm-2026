@@ -11,8 +11,10 @@ import pytest
 
 from sonde_loader import (
     assign_cast_ids,
+    build_sonde_dataset,
     cast_summary,
     daily_surface_features,
+    engineer_sonde_features,
     full_depth_casts,
     load_sonde_readings,
 )
@@ -124,3 +126,60 @@ def test_load_sonde_readings_renames_and_sorts(tmp_path: Path) -> None:
     assert list(loaded.columns)[:3] == ["timestamp", "Temp_C", "Conductivity"]
     assert loaded["timestamp"].is_monotonic_increasing
     assert loaded.iloc[0]["Depth_m"] == pytest.approx(1.0)
+
+
+def test_engineer_sonde_features_adds_rolling_and_stratification() -> None:
+    daily = pd.DataFrame(
+        {
+            "Turbidity_NTU": [1.0, 2.0, 3.0, 4.0],
+            "Conductivity": [200.0, 210.0, 220.0, 230.0],
+        },
+        index=pd.date_range("2026-06-01", periods=4, freq="D", name="DATE"),
+    )
+    casts = pd.DataFrame(
+        {
+            "date": pd.to_datetime(["2026-06-01", "2026-06-02", "2026-06-03", "2026-06-04"]),
+            "temp_diff_c": [1.0, 2.0, 3.0, 4.0],
+        }
+    )
+
+    features = engineer_sonde_features(daily, casts)
+
+    assert features["roll_turbidity_3"].iloc[2] == pytest.approx((1.0 + 2.0 + 3.0) / 3)
+    assert features["roll_conductivity_3"].iloc[2] == pytest.approx((200.0 + 210.0 + 220.0) / 3)
+    assert list(features["temp_diff_c"]) == [1.0, 2.0, 3.0, 4.0]
+
+
+def _write_sonde_xlsx(tmp_path: Path, turbidities: list[float]) -> None:
+    """One single-reading cast per day, pre-rename columns (matching the
+    real file's headers) so this exercises load_sonde_readings too."""
+    rows = [
+        {
+            "Time stamp": pd.Timestamp(f"2026-06-{day:02d} 00:00:00"),
+            "Temp C": 15.0,
+            "Conductivity ": 200.0,
+            "Vertical Position ": 1.0,
+            "pH": 8.0,
+            "ORP mV": 100.0,
+            "Turbidity NTU": turbidity,
+            "Chl ug/L": 0.5,
+            "Phycocyanin ": 0.5,
+            "ODO & sat": 90.0,
+            "ODO mg/L": 9.0,
+        }
+        for day, turbidity in enumerate(turbidities, start=1)
+    ]
+    pd.DataFrame(rows).to_excel(tmp_path / "Strontia 0407_0819.xlsx", index=False)
+
+
+def test_build_sonde_dataset_shifts_features_forward(tmp_path: Path) -> None:
+    _write_sonde_xlsx(tmp_path, [1.0, 2.0, 3.0, 4.0])
+    (tmp_path / "FoothillsInfluent.csv").write_text(
+        "DATE,TOC_mg_L,Alk_mg_L\n6/2/2026,5.0,70\n6/3/2026,5.1,71\n", encoding="utf-8"
+    )
+
+    df = build_sonde_dataset(tmp_path, lag_days=1)
+
+    # a 1-day lag means the 6/2 row sees 6/1's turbidity (1.0), not its own day's (2.0)
+    assert df.loc["2026-06-02", "Turbidity_NTU"] == pytest.approx(1.0)
+    assert df.loc["2026-06-03", "Turbidity_NTU"] == pytest.approx(2.0)

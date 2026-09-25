@@ -19,6 +19,7 @@ from analyze_enso import build_enso_experiment_section
 from analyze_lag_experiments import build_lag_experiments_section
 from analyze_sonde import (
     _anomaly_detection_table,
+    _limited_window_model_table,
     _sonde_predictor_table,
     _storm_profile_table,
     _stratification_table,
@@ -352,6 +353,17 @@ def main() -> None:
     )
     sonde_daily = daily_surface_features(sonde_readings)
     lines += _sonde_predictor_table(DATA_DIR, sonde_readings, sonde_daily)
+
+    lines.append(
+        "\n## Full feature-set comparison on the sonde's limited 4-month window "
+        "(Scenario 1 x Scenario 2: does the sonde add predictive value there?)\n"
+    )
+    lines += _limited_window_model_table(
+        DATA_DIR,
+        sonde_readings,
+        {"TOC_mg_L": TOC_FEATURES, "Alk_mg_L": ALK_FEATURES},
+        {"TOC_mg_L": 2, "Alk_mg_L": 4},
+    )
 
     lines.append(
         "\n## Storm impact on the reservoir's depth profile (Scenario 2: \"how do water quality "

@@ -48,6 +48,7 @@ from visualize_experiments import (
 )
 from visualize_sonde import (
     plot_depth_profiles,
+    plot_limited_window_comparison,
     plot_sonde_vs_gage_comparison,
     plot_storm_profile_comparison,
     plot_stratification_timeline,
@@ -415,7 +416,15 @@ def main() -> None:
     plot_hybrid_lag_model_family(TOC_FEATURES, ALK_FEATURES, DATA_DIR, s1 / "29_hybrid_lag_model_family.png")
     plot_enso_experiment(DATA_DIR, s1 / "30_enso_experiment.png")
 
-    print(f"Wrote 29 figures + 1 animation to {FIGURES_DIR} (grouped under scenario1/2/3 subfolders)")
+    plot_limited_window_comparison(
+        DATA_DIR,
+        sonde_readings,
+        {"TOC_mg_L": TOC_FEATURES, "Alk_mg_L": ALK_FEATURES},
+        {"TOC_mg_L": 2, "Alk_mg_L": 4},
+        s1 / "31_limited_window_comparison.png",
+    )
+
+    print(f"Wrote 30 figures + 1 animation to {FIGURES_DIR} (grouped under scenario1/2/3 subfolders)")
 
 
 if __name__ == "__main__":
