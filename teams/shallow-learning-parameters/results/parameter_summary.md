@@ -367,3 +367,23 @@ Both scored on the same lag_days=2 frame, so alkalinity's independent number her
 |---|---|---|---:|
 | TOC_mg_L | turb_flow | (1, 0, 1) | 0.270 |
 | Alk_mg_L | Specific_Cond_Mean | (1, 0, 1) | 0.108 |
+
+## NOAA ENSO experiment: does the Oceanic Nino Index help? (new dataset, not in data/)
+
+NOAA/PSL's Oceanic Nino Index (ONI, https://psl.noaa.gov/data/correlation/oni.data) is a public NOAA dataset not otherwise used anywhere in this catalog -- a monthly, basin-scale climate index (El Nino/La Nina strength), rather than a local daily watershed reading like everything else here. Snapshot saved to oni.txt (fetch_oni.py); ONI_prev_month uses each day's most recently *fully observed* month, one month behind, avoiding lookahead (enso_loader.py).
+
+| target | Pearson r with ONI (previous month) |
+|---|---:|
+| TOC_mg_L | 0.136 |
+| Alk_mg_L | -0.106 |
+
+| target | frame | features | held-out R^2 |
+|---|---|---|---:|
+| TOC_mg_L | uniform lag | without ONI | 0.334 |
+| TOC_mg_L | uniform lag | with ONI | 0.512 |
+| Alk_mg_L | uniform lag | without ONI | 0.234 |
+| Alk_mg_L | uniform lag | with ONI | 0.266 |
+| TOC_mg_L | hybrid lag (tuned) | without ONI | 0.650 |
+| TOC_mg_L | hybrid lag (tuned) | with ONI | 0.642 |
+| Alk_mg_L | hybrid lag (tuned) | without ONI | 0.241 |
+| Alk_mg_L | hybrid lag (tuned) | with ONI | 0.261 |
