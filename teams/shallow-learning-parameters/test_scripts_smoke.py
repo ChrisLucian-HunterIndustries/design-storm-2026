@@ -130,6 +130,7 @@ def test_analyze_parameters_writes_summary(
     assert "Lag-day grid search" in text
     assert "Per-source lag: does Jake's approach beat a flat 2/4-day lag?" in text
     assert "Hybrid lag: tuning precip's extra lag per target beats both fixed choices" in text
+    assert "Does the best model family also win on the best-lag frame?" in text
     assert "lake turnover" in text
     assert "closer predictor" in text
     assert "depth profile" in text

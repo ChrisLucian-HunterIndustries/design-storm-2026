@@ -47,6 +47,8 @@ from models import (
 )
 from sonde_loader import cast_summary, daily_surface_features, load_sonde_readings
 
+from models_advanced import fit_tuned_gradient_boosting
+
 DATA_DIR = Path(__file__).resolve().parents[2] / "data"
 RESULTS_DIR = Path(__file__).resolve().parent / "results"
 
@@ -272,6 +274,39 @@ def _precip_extra_lag_grid_table(data_dir: Path) -> tuple[list[str], int, int]:
     return lines, best_toc_extra, best_alk_extra
 
 
+def _hybrid_lag_model_family_table(
+    data_dir: Path, best_toc_extra: int, best_alk_extra: int
+) -> list[str]:
+    """Does the best lag also combine with the best model family, or does
+    picking a better lag only help the random forest specifically? Refits
+    every model family already compared on the uniform-lag frame
+    (`_model_family_table`) on each target's own hybrid-lag frame instead."""
+    df_toc_hybrid = build_dataset_per_source_lag(data_dir, lag_days=2, precip_extra_days=best_toc_extra)
+    df_alk_hybrid = build_dataset_per_source_lag(data_dir, lag_days=4, precip_extra_days=best_alk_extra)
+
+    toc_rf_r2 = fit_random_forest_importance(df_toc_hybrid, TOC_FEATURES, "TOC_mg_L").r2
+    toc_svr_r2 = fit_svr_baseline(df_toc_hybrid, TOC_FEATURES, "TOC_mg_L").r2
+    toc_gbr_r2 = fit_gradient_boosting_importance(df_toc_hybrid, TOC_FEATURES, "TOC_mg_L").r2
+    toc_tuned_gbr_r2 = fit_tuned_gradient_boosting(df_toc_hybrid, TOC_FEATURES, "TOC_mg_L").r2
+    alk_rf_r2 = fit_random_forest_importance(df_alk_hybrid, ALK_FEATURES, "Alk_mg_L").r2
+    alk_svr_r2 = fit_svr_baseline(df_alk_hybrid, ALK_FEATURES, "Alk_mg_L").r2
+    alk_gbr_r2 = fit_gradient_boosting_importance(df_alk_hybrid, ALK_FEATURES, "Alk_mg_L").r2
+    alk_tuned_gbr_r2 = fit_tuned_gradient_boosting(df_alk_hybrid, ALK_FEATURES, "Alk_mg_L").r2
+
+    return [
+        "| target | model (on the hybrid-lag frame) | held-out R^2 |",
+        "|---|---|---:|",
+        f"| TOC_mg_L | Random forest | {_fmt(toc_rf_r2)} |",
+        f"| TOC_mg_L | SVR (RBF kernel, scaled features) | {_fmt(toc_svr_r2)} |",
+        f"| TOC_mg_L | Gradient boosting (untuned) | {_fmt(toc_gbr_r2)} |",
+        f"| TOC_mg_L | Gradient boosting (GridSearchCV-tuned) | {_fmt(toc_tuned_gbr_r2)} |",
+        f"| Alk_mg_L | Random forest | {_fmt(alk_rf_r2)} |",
+        f"| Alk_mg_L | SVR (RBF kernel, scaled features) | {_fmt(alk_svr_r2)} |",
+        f"| Alk_mg_L | Gradient boosting (untuned) | {_fmt(alk_gbr_r2)} |",
+        f"| Alk_mg_L | Gradient boosting (GridSearchCV-tuned) | {_fmt(alk_tuned_gbr_r2)} |",
+    ]
+
+
 def _series_to_points(series: pd.Series) -> list[list]:
     """A pandas Series (DatetimeIndex -> float) as [["YYYY-MM-DD", value], ...]
     JSON, for viewer.html's Chart.js time-scale line charts."""
@@ -467,6 +502,18 @@ def main() -> None:
     lines.append("|---|---:|---:|---:|")
     lines.append(f"| TOC_mg_L | 0.334 | 0.599 | {_fmt(hybrid_toc_r2)} |")
     lines.append(f"| Alk_mg_L | 0.234 | 0.184 | {_fmt(hybrid_alk_r2)} |")
+
+    lines.append(
+        "\n## Does the best model family also win on the best-lag frame?\n"
+    )
+    lines.append(
+        "The model-family comparison above (SVR beating the random forest) and the hybrid-lag "
+        "result above it were each found on a *different* frame -- SVR was only ever tried on "
+        "the uniform lag_days=2/4 frame, not the hybrid-lag frame that beat it. Refits every "
+        "model family on each target's own hybrid-lag frame to check whether the two "
+        "improvements stack.\n"
+    )
+    lines += _hybrid_lag_model_family_table(DATA_DIR, best_toc_extra, best_alk_extra)
 
     lines.append(
         "\n## Strontia profiling sonde: stratification (Scenario 3: \"lake turnover\")\n"
