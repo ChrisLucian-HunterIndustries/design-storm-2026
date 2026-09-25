@@ -145,6 +145,8 @@ def test_analyze_parameters_writes_summary(
     assert "Chemical-dosing alert calendar" in text
     assert "Is a dose required right now?" in text
     assert "NOAA ENSO experiment: does the Oceanic Nino Index help?" in text
+    assert "Other ideas for the limited 4-month window" in text
+    assert "MTBS burn-scar experiment" in text
 
     json_path = results_dir / "predictions.json"
     assert json_path.exists()
