@@ -425,12 +425,16 @@ The U.S. Drought Monitor's weekly county drought-severity index (https://usdmdat
 | TOC_mg_L | -0.298 |
 | Alk_mg_L | 0.154 |
 
-| target | features | held-out R² (full multi-year record, uniform lag) |
-|---|---|---:|
-| TOC_mg_L | without DSCI | 0.334 |
-| TOC_mg_L | with DSCI | 0.653 |
-| Alk_mg_L | without DSCI | 0.234 |
-| Alk_mg_L | with DSCI | 0.259 |
+| target | frame | features | held-out R² |
+|---|---|---|---:|
+| TOC_mg_L | uniform lag | without DSCI | 0.334 |
+| TOC_mg_L | uniform lag | with DSCI | 0.653 |
+| Alk_mg_L | uniform lag | without DSCI | 0.234 |
+| Alk_mg_L | uniform lag | with DSCI | 0.259 |
+| TOC_mg_L | hybrid lag (tuned) | without DSCI | 0.650 |
+| TOC_mg_L | hybrid lag (tuned) | with DSCI | 0.723 |
+| Alk_mg_L | hybrid lag (tuned) | without DSCI | 0.241 |
+| Alk_mg_L | hybrid lag (tuned) | with DSCI | 0.259 |
 
 ### Does it help Scenario 1's limited 4-month sonde window specifically?
 
@@ -442,3 +446,12 @@ Same 2026-04-07 to 2026-08-19 sonde window as the earlier feature-set comparison
 | TOC_mg_L | national + DSCI | 129 | -0.591 |
 | Alk_mg_L | national only (baseline) | 133 | 0.121 |
 | Alk_mg_L | national + DSCI | 133 | 0.110 |
+
+### Do the two public-data ideas (ONI + DSCI) help more together than either alone?
+
+| target | frame | features | held-out R² |
+|---|---|---|---:|
+| TOC_mg_L | uniform lag | national + ONI + DSCI | 0.655 |
+| Alk_mg_L | uniform lag | national + ONI + DSCI | 0.264 |
+| TOC_mg_L | hybrid lag (tuned) | national + ONI + DSCI | 0.711 |
+| Alk_mg_L | hybrid lag (tuned) | national + ONI + DSCI | 0.255 |
