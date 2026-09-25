@@ -200,6 +200,7 @@ def test_analyze_parameters_writes_summary(
     assert "NOAA ENSO experiment: does the Oceanic Nino Index help?" in text
     assert "Other ideas for the limited 4-month window" in text
     assert "MTBS burn-scar experiment" in text
+    assert "Denver Water's own outflow, combined with fire history" in text
     assert "NWS live-forecast demonstration" in text
     assert "Melt-out date regression" in text
 
@@ -265,6 +266,7 @@ def test_visualize_writes_all_figures(
         "scenario1_toc_alkalinity/34_delta_target_comparison.png",
         "scenario1_toc_alkalinity/35_two_stage_chain.png",
         "scenario1_toc_alkalinity/36_burn_scar_comparison.png",
+        "scenario1_toc_alkalinity/39_denver_outflow_fire.png",
         "scenario3_snowpack_system/37_nws_forecast_precip.png",
         "scenario3_snowpack_system/38_melt_out_regression.png",
     ]

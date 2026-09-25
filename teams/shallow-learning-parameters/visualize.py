@@ -40,6 +40,7 @@ from visualize_advanced import (
 )
 from visualize_anomaly import plot_anomaly_detection
 from visualize_burn_scar import plot_burn_scar_comparison
+from visualize_denver_outflow import plot_denver_outflow_comparison
 from visualize_dosing import plot_dosing_alert_timeline
 from visualize_experiments import (
     plot_enso_experiment,
@@ -446,8 +447,11 @@ def main() -> None:
     plot_burn_scar_comparison(DATA_DIR, national_features, lag_days_map, s1 / "36_burn_scar_comparison.png")
     plot_nws_forecast_precip(s3 / "37_nws_forecast_precip.png")
     plot_melt_out_regression(DATA_DIR, s3 / "38_melt_out_regression.png")
+    plot_denver_outflow_comparison(
+        DATA_DIR, national_features, lag_days_map, s1 / "39_denver_outflow_fire.png"
+    )
 
-    print(f"Wrote 37 figures + 1 animation to {FIGURES_DIR} (grouped under scenario1/2/3 subfolders)")
+    print(f"Wrote 38 figures + 1 animation to {FIGURES_DIR} (grouped under scenario1/2/3 subfolders)")
 
 
 if __name__ == "__main__":

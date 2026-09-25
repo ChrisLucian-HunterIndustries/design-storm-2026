@@ -15,6 +15,7 @@ import pandas as pd
 
 from analyze_advanced import build_report_sections
 from analyze_burn_scar import build_burn_scar_experiment_section
+from analyze_denver_outflow import build_denver_outflow_section
 from analyze_dosing import build_dosing_alert_section
 from analyze_drought import build_drought_experiment_section
 from analyze_enso import build_enso_experiment_section
@@ -390,6 +391,12 @@ def main() -> None:
     )
 
     lines += build_burn_scar_experiment_section(
+        DATA_DIR,
+        {"TOC_mg_L": TOC_FEATURES, "Alk_mg_L": ALK_FEATURES},
+        {"TOC_mg_L": 2, "Alk_mg_L": 4},
+    )
+
+    lines += build_denver_outflow_section(
         DATA_DIR,
         {"TOC_mg_L": TOC_FEATURES, "Alk_mg_L": ALK_FEATURES},
         {"TOC_mg_L": 2, "Alk_mg_L": 4},
