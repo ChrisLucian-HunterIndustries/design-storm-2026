@@ -6,6 +6,10 @@ Scenario 1's "is there public data to fine-tune this until we have more
 [sonde] data" question is most pressing? See drought_loader.py for
 parsing/lag-safe alignment, fetch_usdm.py for how usdm_jefferson.csv was
 obtained.
+
+Also tests DSCI together with NOAA's ONI (analyze_enso.py) -- the two
+public-data ideas found in this catalog -- since each helped on its own
+and neither has been tried alongside the other yet.
 """
 from __future__ import annotations
 
@@ -13,8 +17,10 @@ from pathlib import Path
 
 import pandas as pd
 
-from data_loader import build_dataset
+from analyze_enso import ONI_PATH
+from data_loader import build_dataset, build_dataset_per_source_lag
 from drought_loader import dsci_feature_for_dates, load_usdm
+from enso_loader import load_oni, oni_feature_for_dates
 from models import fit_random_forest_importance
 
 USDM_PATH = Path(__file__).resolve().parent / "usdm_jefferson.csv"
@@ -27,6 +33,12 @@ def _fmt(value: float) -> str:
 def _add_dsci_feature(df: pd.DataFrame, usdm: pd.DataFrame) -> pd.DataFrame:
     out = df.copy()
     out["DSCI_prev_week"] = dsci_feature_for_dates(usdm, out.index)
+    return out
+
+
+def _add_oni_feature(df: pd.DataFrame, oni: pd.DataFrame) -> pd.DataFrame:
+    out = df.copy()
+    out["ONI_prev_month"] = oni_feature_for_dates(oni, out.index)
     return out
 
 
@@ -49,26 +61,62 @@ def _drought_model_table(
     data_dir: Path, usdm: pd.DataFrame, toc_features: list[str], alk_features: list[str]
 ) -> list[str]:
     """Held-out R^2 with vs. without DSCI_prev_week, same random forest, on
-    the full multi-year record (uniform lag, this catalog's long-standing
-    baseline)."""
-    df_toc = build_dataset(data_dir, lag_days=2)
-    df_alk = build_dataset(data_dir, lag_days=4)
-    toc_r2 = fit_random_forest_importance(df_toc, toc_features, "TOC_mg_L").r2
-    alk_r2 = fit_random_forest_importance(df_alk, alk_features, "Alk_mg_L").r2
+    both the uniform-lag baseline frame AND the hybrid-lag best frame --
+    same two frames analyze_enso.py already checks ONI against, so DSCI
+    gets the same "does it still help once the lag itself is tuned" test."""
+    lines = ["| target | frame | features | held-out R² |", "|---|---|---|---:|"]
 
-    df_toc_dsci = _add_dsci_feature(df_toc, usdm)
-    df_alk_dsci = _add_dsci_feature(df_alk, usdm)
-    toc_dsci_r2 = fit_random_forest_importance(df_toc_dsci, [*toc_features, "DSCI_prev_week"], "TOC_mg_L").r2
-    alk_dsci_r2 = fit_random_forest_importance(df_alk_dsci, [*alk_features, "DSCI_prev_week"], "Alk_mg_L").r2
-
-    return [
-        "| target | features | held-out R² (full multi-year record, uniform lag) |",
-        "|---|---|---:|",
-        f"| TOC_mg_L | without DSCI | {_fmt(toc_r2)} |",
-        f"| TOC_mg_L | with DSCI | {_fmt(toc_dsci_r2)} |",
-        f"| Alk_mg_L | without DSCI | {_fmt(alk_r2)} |",
-        f"| Alk_mg_L | with DSCI | {_fmt(alk_dsci_r2)} |",
+    frames = [
+        ("uniform lag", build_dataset(data_dir, lag_days=2), build_dataset(data_dir, lag_days=4)),
+        (
+            "hybrid lag (tuned)",
+            build_dataset_per_source_lag(data_dir, lag_days=2, precip_extra_days=4),
+            build_dataset_per_source_lag(data_dir, lag_days=4, precip_extra_days=6),
+        ),
     ]
+    for frame_name, df_toc, df_alk in frames:
+        toc_r2 = fit_random_forest_importance(df_toc, toc_features, "TOC_mg_L").r2
+        alk_r2 = fit_random_forest_importance(df_alk, alk_features, "Alk_mg_L").r2
+        df_toc_dsci = _add_dsci_feature(df_toc, usdm)
+        df_alk_dsci = _add_dsci_feature(df_alk, usdm)
+        toc_dsci_r2 = fit_random_forest_importance(df_toc_dsci, [*toc_features, "DSCI_prev_week"], "TOC_mg_L").r2
+        alk_dsci_r2 = fit_random_forest_importance(df_alk_dsci, [*alk_features, "DSCI_prev_week"], "Alk_mg_L").r2
+        lines.append(f"| TOC_mg_L | {frame_name} | without DSCI | {_fmt(toc_r2)} |")
+        lines.append(f"| TOC_mg_L | {frame_name} | with DSCI | {_fmt(toc_dsci_r2)} |")
+        lines.append(f"| Alk_mg_L | {frame_name} | without DSCI | {_fmt(alk_r2)} |")
+        lines.append(f"| Alk_mg_L | {frame_name} | with DSCI | {_fmt(alk_dsci_r2)} |")
+    return lines
+
+
+def _combined_public_data_table(
+    data_dir: Path, oni: pd.DataFrame, usdm: pd.DataFrame, toc_features: list[str], alk_features: list[str]
+) -> list[str]:
+    """Do the two public-data ideas found in this catalog (ONI, DSCI) help
+    *together* more than either alone? Same two frames as the tables above."""
+    lines = [
+        "| target | frame | features | held-out R² |",
+        "|---|---|---|---:|",
+    ]
+    frames = [
+        ("uniform lag", build_dataset(data_dir, lag_days=2), build_dataset(data_dir, lag_days=4)),
+        (
+            "hybrid lag (tuned)",
+            build_dataset_per_source_lag(data_dir, lag_days=2, precip_extra_days=4),
+            build_dataset_per_source_lag(data_dir, lag_days=4, precip_extra_days=6),
+        ),
+    ]
+    for frame_name, df_toc, df_alk in frames:
+        toc_both = _add_dsci_feature(_add_oni_feature(df_toc, oni), usdm)
+        alk_both = _add_dsci_feature(_add_oni_feature(df_alk, oni), usdm)
+        toc_r2 = fit_random_forest_importance(
+            toc_both, [*toc_features, "ONI_prev_month", "DSCI_prev_week"], "TOC_mg_L"
+        ).r2
+        alk_r2 = fit_random_forest_importance(
+            alk_both, [*alk_features, "ONI_prev_month", "DSCI_prev_week"], "Alk_mg_L"
+        ).r2
+        lines.append(f"| TOC_mg_L | {frame_name} | national + ONI + DSCI | {_fmt(toc_r2)} |")
+        lines.append(f"| Alk_mg_L | {frame_name} | national + ONI + DSCI | {_fmt(alk_r2)} |")
+    return lines
 
 
 def _drought_limited_window_table(
@@ -118,6 +166,7 @@ def build_drought_experiment_section(
     lag_days: dict[str, int],
 ) -> list[str]:
     usdm = load_usdm(USDM_PATH)
+    oni = load_oni(ONI_PATH)
     df_toc = build_dataset(data_dir, lag_days=lag_days["TOC_mg_L"])
     df_alk = build_dataset(data_dir, lag_days=lag_days["Alk_mg_L"])
 
@@ -139,4 +188,11 @@ def build_drought_experiment_section(
     )
     lines.append("\n### Does it help Scenario 1's limited 4-month sonde window specifically?\n")
     lines += _drought_limited_window_table(data_dir, sonde_readings, usdm, national_features, lag_days)
+
+    lines.append(
+        "\n### Do the two public-data ideas (ONI + DSCI) help more together than either alone?\n"
+    )
+    lines += _combined_public_data_table(
+        data_dir, oni, usdm, national_features["TOC_mg_L"], national_features["Alk_mg_L"]
+    )
     return lines
