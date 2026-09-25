@@ -320,6 +320,18 @@ Same 2026-04-07 to 2026-08-19 sonde window for every feature set. Row counts are
 Caveat: this window has only 135 lab results total (see the sonde-as-predictor table above), and dropna/rolling-window warmup plus a 50/50 time-ordered split leaves well under 100 rows per side for some of these fits -- treat any single R^2 here as a rough direction, not a stable score, the same caveat already applied to the lag-day grid search elsewhere in this catalog.
 
 
+## Pretrain-then-fine-tune: base model on the full record, corrected with sonde data (Scenario 1: "fine-tune this until we have more [sonde] data")
+
+Base model: RandomForestRegressor on national features, trained on every record row *before* the sonde's window (no leakage). Fine-tune: LinearRegression correcting the base model's residual using 2 sonde columns, fit on the window's own train half only.
+
+| target | background rows | fine-tune train/test rows | base-only R² | base + fine-tune R² |
+|---|---:|---|---:|---:|
+| TOC_mg_L | 728 | 48/49 | -7.171 | -4.716 |
+| Alk_mg_L | 785 | 49/49 | -4.087 | -12.354 |
+
+Both columns are far more negative than the earlier restricted-window comparison (which let the sonde window's own first half into training) -- the base model never sees 2026 at all (background = every row *before* 2026-04-07), and 2026 is guide.md's documented drought year (peak SWE 7.9in vs. 2024's 20.9in), so extrapolating forward across that boundary is harder than the earlier tables' in-window split. The residual correction helps TOC a little and makes alkalinity much worse -- with a base model this far off, a 2-feature linear correction just adds its own noise on top rather than fixing a small, well-behaved error. Honest conclusion: this pretrain-then-fine-tune framing does not rescue the limited window either -- see the section above for the actual, still-modest answer (a single-column lag correlation survives this data volume where any of these multi-parameter approaches do not).
+
+
 ## Storm impact on the reservoir's depth profile (Scenario 2: "how do water quality parameters change and distribute by depth")
 
 Storm date (peak flow and turbidity in the sonde's window): 2026-07-18.
@@ -403,3 +415,30 @@ NOAA/PSL's Oceanic Nino Index (ONI, https://psl.noaa.gov/data/correlation/oni.da
 | TOC_mg_L | hybrid lag (tuned) | with ONI | 0.642 |
 | Alk_mg_L | hybrid lag (tuned) | without ONI | 0.241 |
 | Alk_mg_L | hybrid lag (tuned) | with ONI | 0.261 |
+
+## U.S. Drought Monitor experiment: does county drought severity help? (new dataset, not in data/)
+
+The U.S. Drought Monitor's weekly county drought-severity index (https://usdmdataservices.unl.edu, Jefferson County CO -- DSCI = D0+D1+D2+D3+D4, range 0-500) is a public dataset not otherwise used anywhere in this catalog -- weekly and county-specific, a higher-frequency and more local public signal than NOAA's ONI (analyzed above). Snapshot saved to usdm_jefferson.csv (fetch_usdm.py); DSCI_prev_week uses each day's most recently *fully ended* week, avoiding lookahead (drought_loader.py).
+
+| target | Pearson r with DSCI (most recently ended week) |
+|---|---:|
+| TOC_mg_L | -0.298 |
+| Alk_mg_L | 0.154 |
+
+| target | features | held-out R² (full multi-year record, uniform lag) |
+|---|---|---:|
+| TOC_mg_L | without DSCI | 0.334 |
+| TOC_mg_L | with DSCI | 0.653 |
+| Alk_mg_L | without DSCI | 0.234 |
+| Alk_mg_L | with DSCI | 0.259 |
+
+### Does it help Scenario 1's limited 4-month sonde window specifically?
+
+Same 2026-04-07 to 2026-08-19 sonde window as the earlier feature-set comparison -- does adding DSCI to the national-only feature set change the result there?
+
+| target | features | rows after dropna | held-out R² |
+|---|---|---:|---:|
+| TOC_mg_L | national only (baseline) | 129 | -0.628 |
+| TOC_mg_L | national + DSCI | 129 | -0.591 |
+| Alk_mg_L | national only (baseline) | 133 | 0.121 |
+| Alk_mg_L | national + DSCI | 133 | 0.110 |
