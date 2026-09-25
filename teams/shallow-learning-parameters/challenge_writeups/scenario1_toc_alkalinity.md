@@ -386,7 +386,50 @@ necessarily "more representative") or a data-handling issue in how this
 catalog aggregated the near-surface reading; it isn't resolved here and
 shouldn't be trusted without more digging.
 
-## Deeper model-family follow-up: tuning, quantile regression, multi-output, Gaussian Processes, and SARIMAX
+### What can we actually use for prediction on this limited 4-month window?
+
+The correlation check above only ever tests one sonde column against one
+target at a time. The natural next question — asked directly, and worth
+answering directly rather than assuming the single-column result
+generalizes — is whether a *full* model, using every sonde column from
+Scenario 2's data at once (`sonde_loader.build_sonde_dataset`: surface
+temperature, conductivity, pH, turbidity, chlorophyll, dissolved oxygen,
+plus 3-day rolling turbidity/conductivity and daily stratification from
+the cast summaries), does any better than the single-column check
+suggested — and whether combining it with the national datasets (also
+restricted to this same window, for a fair comparison) helps.
+
+![Feature-set comparison on the limited window](../figures/scenario1_toc_alkalinity/31_limited_window_comparison.png)
+
+| target | feature set | rows after dropna | random forest R² | SVR R² |
+|---|---|---:|---:|---:|
+| TOC_mg_L | national datasets only | 129 | -0.628 | -0.197 |
+| TOC_mg_L | sonde only | 100 | -1.496 | -1.816 |
+| TOC_mg_L | national + sonde combined | 95 | -3.324 | -2.973 |
+| Alk_mg_L | national datasets only | 133 | 0.121 | -0.486 |
+| Alk_mg_L | sonde only | 98 | -5.695 | -5.848 |
+| Alk_mg_L | national + sonde combined | 96 | -3.156 | -3.710 |
+
+The honest answer: **nothing here reliably beats a mean-only baseline**
+(R² ≤ 0 for every row except one). Combining feature sets makes things
+*worse*, not better — every "combined" score is more negative than either
+input alone, for both targets. This is a real, if disappointing, finding
+worth stating plainly rather than picking the least-bad number and calling
+it a win: with only 135 lab results across the whole 4-month window, and
+9-10 features per set, a full multi-feature model (random forest or SVR)
+has too few rows to fit that many parameters without overfitting to noise
+in the training half and failing on the test half — the same failure mode
+this catalog's lag-day grid search already flagged for a 50/50 split on a
+much larger frame. **What actually works at this data volume is the
+simpler, lower-degrees-of-freedom check already in the table above it**:
+a single predictor's lag-correlation (gage conductance r=0.486 for
+alkalinity, gage turbidity r=0.200 for TOC) is a real, if modest, signal
+that survives this small a sample where a 9-feature model does not. If
+more lab results accumulate in future sonde deployments, revisit the
+full-feature comparison — the failure here is a sample-size problem, not
+evidence that the sonde's individual columns carry no information.
+
+
 
 The gradient-boosting paragraph above ended with an open question — is
 untuned boosting a bad fit here, or just an untuned one? — and the SVR
