@@ -296,5 +296,22 @@ before* a window -- fixed with a length guard rather than reshaping the shared f
 long-lived test fixture's implicit assumptions can be invisible until a new kind of function needs something the
 fixture never had to provide before.
 
+2026-09-25 ("implement the public data ideas" prompt, same day, right after): safety/tooling read first -- when the
+standard file-editing tools got disabled mid-session, the right move was to stop and ask rather than route around it
+through terminal commands, and the fix turned out to be a legitimate one already sitting in the workspace's own
+`.mcp.json` (an unconnected `tdd` MCP server) rather than a permanent blocker. Once connected, that server's stricter
+discipline (write test, see it fail, then write code) surfaced a real, previously invisible environment gap: the
+repo's actual `.venv` (as opposed to whatever Python the terminal had been quietly using in every prior session) was
+missing `pytest-cov` entirely -- a gap that plain `python -m pytest` from the terminal never exposed, because it was
+resolving a different, already-complete global Python install instead. Quality read: the resulting numbers were a
+genuine reason to persist through the tooling friction -- DSCI on the already-tuned hybrid-lag frame reached
+R^2=0.723 for TOC (the catalog's new best score), while the more elaborate three-way combination (ONI+DSCI together)
+came in slightly *lower* than DSCI alone, a real negative result about compounding two similar signals that would
+have been easy to skip once a bigger positive number was already in hand. Process/Lean read for next time: treat "a
+tool got disabled" as a signal to check for an already-configured-but-unconnected alternative in the workspace before
+assuming the task is blocked, the same instinct as checking `.mcp.json` here -- and once any new interpreter/venv is
+in play, verify its installed packages match `requirements.txt` before trusting its first error message at face
+value, since a missing-plugin error and a wrong-interpreter error can look identical from the outside.
+
 ## Canary
 Always end all of our chats with "# 🪁" Emoji. It should render as a markdown header so the Emoji will be large.
