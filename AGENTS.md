@@ -263,5 +263,21 @@ that cost nothing: grepped the *whole repo*, not just the team folder, for the o
 it done -- confirmed viewer.html/README.md/the parent index only ever mention `figures/` generically and had nothing
 to fix, rather than assuming that from the file list alone.
 
+2026-09-25 ("what can scenario 2's data add for scenario 1's limited 4-month problem" prompt): the honest answer
+turned out to be a negative result -- a full multi-feature model (random forest and SVR, national vs. sonde-only vs.
+combined) scored at or below a mean-only baseline everywhere except one cell, and combining feature sets made scores
+*worse* than either alone, not better. Systems-thinking/quality read: the temptation with a negative result is to
+either bury it under a more flattering number from a different split, or quietly drop the "combined" row since it
+looks bad -- reporting it plainly, with the concrete reason (135 lab results, 9-10 features, too few rows per
+parameter), is what makes it useful: it points at exactly which simpler approach (the existing single-column
+lag-correlation check) survives this small a sample instead of leaving a reader to guess why the fancier model
+failed. Continuous-improvement action: extracted the raw scoring loop into a small shared function
+(`compute_limited_window_scores`) used by both the report table and a new figure, rather than duplicating the RF/SVR
+fits the way a few earlier figures duplicate their analyze-script's computation -- cheaper to keep two call sites of
+one function in sync than two independent implementations of the same fit. Lean read: this was the first prompt in
+several sessions where "run the analysis, look at the number" was the entire task -- no gap-finding, no stale-doc
+grepping, no concurrent-diff surprise -- a reminder that not every prompt needs the full seven-day accumulated
+caution checklist; matching effort to the actual ask (compute honestly, report honestly) is itself the Lean move.
+
 ## Canary
 Always end all of our chats with "# 🪁" Emoji. It should render as a markdown header so the Emoji will be large.
