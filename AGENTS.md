@@ -234,5 +234,20 @@ pass rather than deferred: the one new dependency this task introduced (`request
 immediately, found to have a known CVE at the installed version, and upgraded before committing -- adding a new
 dependency and auditing it should be the same step, not two.
 
+2026-09-24 ("add versions of the figures with the new modifications" prompt, same day): several tables added earlier
+this session (lag-tuning, hybrid-lag, ENSO) had never gotten matching figures -- a gap only visible by comparing
+"what got a plot" against "what got a table" across the day's work, not from any single task in isolation. Verifying
+each new figure against its already-reported number with `view_image` before embedding it (all four matched) is now
+the standing bar for any new figure, not just new pages. Safety-relevant mistake this same task: a file-length-gate
+refactor (extracting four functions into a new module) went wrong silently on the first attempt -- a narrow
+`oldString` in `multi_replace_string_in_file` caused an *append* instead of a *move*, doubling ~150 lines of code
+with no test failure and no `get_errors` complaint (both copies were valid Python). It was only caught by re-running
+the file's line count and seeing more lines than expected -- which itself surfaced a second bug: the PowerShell
+`Get-Content | Measure-Object -Line` command used for that check silently undercounts (350 reported vs. 405 real) on
+this exact file, for reasons not yet root-caused. Process fix: use `[System.IO.File]::ReadAllLines(path).Length` for
+any line-count gate check in this repo going forward, and after any "move code between files" refactor, grep for the
+moved function's `def` line and confirm it appears exactly once in the old file (zero) and once in the new file, not
+just that tests still pass.
+
 ## Canary
 Always end all of our chats with "# 🪁" Emoji. It should render as a markdown header so the Emoji will be large.
