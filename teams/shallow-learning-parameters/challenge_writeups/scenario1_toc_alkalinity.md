@@ -82,6 +82,10 @@ results, shifted 2 days (TOC) / 4 days (alkalinity) as Jake's own models do.
 > `precip_extra_days` as a direction worth investigating further, not a
 > final answer — see `results/parameter_summary.md`'s "Hybrid lag" section
 > for the full 0-7 day scan behind this table.
+
+![Lag approach comparison: uniform vs. Jake's fixed vs. hybrid tuned](../figures/27_lag_approach_comparison.png)
+
+![Precip-extra-lag grid search behind the hybrid result](../figures/28_precip_extra_lag_grid.png)
 >
 > **Does the better lag also combine with the better model family?** Only
 > for alkalinity. Refitting SVR and gradient boosting (untuned and
@@ -93,6 +97,8 @@ results, shifted 2 days (TOC) / 4 days (alkalinity) as Jake's own models do.
 > below Gaussian Process regression's 0.516 (see the model-family section
 > further down), which remains the best alkalinity score here even after
 > this round of lag tuning.
+
+![Model family comparison on the hybrid-lag frame](../figures/29_hybrid_lag_model_family.png)
 
 [`models.py`](../models.py) fits a **RandomForestRegressor** per target on a
 time-ordered (no shuffling, no leakage) split.
@@ -472,6 +478,8 @@ some of the same year-to-year wet/dry signal the tuned lag already
 recovers on its own, not a fully independent one. Full numbers in
 [`results/parameter_summary.md`](../results/parameter_summary.md)'s "NOAA
 ENSO experiment" section.
+
+![NOAA Oceanic Nino Index: does it help?](../figures/30_enso_experiment.png)
 
 ## What the deck asks for that isn't here
 
