@@ -83,9 +83,9 @@ results, shifted 2 days (TOC) / 4 days (alkalinity) as Jake's own models do.
 > final answer — see `results/parameter_summary.md`'s "Hybrid lag" section
 > for the full 0-7 day scan behind this table.
 
-![Lag approach comparison: uniform vs. Jake's fixed vs. hybrid tuned](../figures/27_lag_approach_comparison.png)
+![Lag approach comparison: uniform vs. Jake's fixed vs. hybrid tuned](../figures/scenario1_toc_alkalinity/27_lag_approach_comparison.png)
 
-![Precip-extra-lag grid search behind the hybrid result](../figures/28_precip_extra_lag_grid.png)
+![Precip-extra-lag grid search behind the hybrid result](../figures/scenario1_toc_alkalinity/28_precip_extra_lag_grid.png)
 >
 > **Does the better lag also combine with the better model family?** Only
 > for alkalinity. Refitting SVR and gradient boosting (untuned and
@@ -98,7 +98,7 @@ results, shifted 2 days (TOC) / 4 days (alkalinity) as Jake's own models do.
 > further down), which remains the best alkalinity score here even after
 > this round of lag tuning.
 
-![Model family comparison on the hybrid-lag frame](../figures/29_hybrid_lag_model_family.png)
+![Model family comparison on the hybrid-lag frame](../figures/scenario1_toc_alkalinity/29_hybrid_lag_model_family.png)
 
 [`models.py`](../models.py) fits a **RandomForestRegressor** per target on a
 time-ordered (no shuffling, no leakage) split.
@@ -109,19 +109,19 @@ time-ordered (no shuffling, no leakage) split.
 - **Alk_mg_L**: held-out R² = 0.234, led by `Specific_Cond_Mean` and
   `pH_Median`.
 
-![TOC and alkalinity over time](../figures/01_targets_timeseries.png)
+![TOC and alkalinity over time](../figures/scenario1_toc_alkalinity/01_targets_timeseries.png)
 
-![Correlation of every engineered predictor with each target](../figures/02_correlation_heatmap.png)
+![Correlation of every engineered predictor with each target](../figures/scenario1_toc_alkalinity/02_correlation_heatmap.png)
 
-![turb_flow vs TOC, with linear fit](../figures/03_turb_flow_vs_toc.png)
+![turb_flow vs TOC, with linear fit](../figures/scenario1_toc_alkalinity/03_turb_flow_vs_toc.png)
 
-![Random forest feature importance, TOC vs alkalinity](../figures/04_feature_importance.png)
+![Random forest feature importance, TOC vs alkalinity](../figures/scenario1_toc_alkalinity/04_feature_importance.png)
 
 The deck's "yes/no" framing (guide.md's alkalinity-below-60 classifier) is
 scored here with a full precision/recall curve instead of one operating
 point — **ROC-AUC = 0.840** on the held-out split:
 
-![Alkalinity below 60 mg/L classifier precision/recall curve](../figures/06_alkalinity_classifier_pr_curve.png)
+![Alkalinity below 60 mg/L classifier precision/recall curve](../figures/scenario1_toc_alkalinity/06_alkalinity_classifier_pr_curve.png)
 
 ## Trying other model families and lag-times
 
@@ -135,7 +135,7 @@ comparable.
 kernel on standardized features — SVR is scale-sensitive, unlike the tree
 models, so this pipeline scales first):
 
-![Held-out R^2 across model families](../figures/11_model_family_comparison.png)
+![Held-out R^2 across model families](../figures/scenario1_toc_alkalinity/11_model_family_comparison.png)
 
 | target | model | held-out R² |
 |---|---|---:|
@@ -177,7 +177,7 @@ boosting being a worse family in general.
 **Lag-day grid search** (`build_dataset` rebuilt at each candidate lag, same
 random forest refit each time):
 
-![Held-out R^2 vs. lag_days](../figures/12_lag_day_grid_search.png)
+![Held-out R^2 vs. lag_days](../figures/scenario1_toc_alkalinity/12_lag_day_grid_search.png)
 
 | lag (days) | TOC_mg_L R² | Alk_mg_L R² |
 |---:|---:|---:|
@@ -209,7 +209,7 @@ treatment: random forest vs. a `LogisticRegression` baseline (imported in
 `models.py` from the start of this catalog but never actually used until
 now):
 
-![Random forest vs. logistic regression](../figures/17_classifier_comparison.png)
+![Random forest vs. logistic regression](../figures/scenario1_toc_alkalinity/17_classifier_comparison.png)
 
 | model | ROC-AUC |
 |---|---:|
@@ -263,7 +263,7 @@ build one on top of models already above, no new model family required:
 > target's features (guide.md section 8) — the calendar date an alert fires
 > on *is* the lead time, not a separate figure to look up.
 
-![Chemical-dosing alert calendar](../figures/26_dosing_alert_timeline.png)
+![Chemical-dosing alert calendar](../figures/scenario1_toc_alkalinity/26_dosing_alert_timeline.png)
 
 The TOC panel is the cleaner result: 90 alert days, visibly clustered around
 the real spring-2024 and spring-2025 spikes rather than scattered randomly,
@@ -356,7 +356,7 @@ record — so `analyze_parameters._sonde_predictor_table` scores both sensors
 on that *same* restricted window, not the gage's full history, for a fair
 comparison:
 
-![Sonde vs. upstream gage, same window](../figures/16_sonde_vs_gage_comparison.png)
+![Sonde vs. upstream gage, same window](../figures/scenario1_toc_alkalinity/16_sonde_vs_gage_comparison.png)
 
 | sensor | predictor | target | best lag (days) | correlation at best lag |
 |---|---|---|---:|---:|
@@ -402,7 +402,7 @@ turns TOC's *worst* model into the *best* one — R² 0.111 → **0.561**,
 ahead of SVR (0.502) and the random forest (0.334). Alkalinity improves
 too, 0.327 → **0.387**, though it still trails SVR's 0.423.
 
-![Untuned vs. tuned gradient boosting](../figures/19_tuning_comparison.png)
+![Untuned vs. tuned gradient boosting](../figures/scenario1_toc_alkalinity/19_tuning_comparison.png)
 
 **Quantile regression** targets `guide.md` section 10's actual concern —
 catching peaks, not average R² — directly, by fitting the 90th percentile
@@ -411,7 +411,7 @@ instead of the mean. TOC's predicted band is well-calibrated (coverage
 meaning the real value exceeds the "90th percentile" line about 16% of the
 time instead of 10%):
 
-![Quantile bands vs. actual](../figures/21_quantile_bands.png)
+![Quantile bands vs. actual](../figures/scenario1_toc_alkalinity/21_quantile_bands.png)
 
 **Joint multi-output modeling** (one random forest fit on both targets at
 once, vs. each target's own independent forest, both on the shared
@@ -421,7 +421,7 @@ improves substantially (0.334 → 0.569) but alkalinity gets worse
 alkalinity onto TOC's 2-day lag instead of its own preferred 4-day lag (see
 the grid search above) costs more than joint tree-sharing gains it:
 
-![Independent vs. joint multi-output R^2](../figures/22_multioutput_comparison.png)
+![Independent vs. joint multi-output R^2](../figures/scenario1_toc_alkalinity/22_multioutput_comparison.png)
 
 **Gaussian Process regression** is the one family here that returns a
 calibrated uncertainty band alongside its point estimate — arguably a
@@ -431,7 +431,7 @@ alkalinity scores R²=0.516 — the **best alkalinity score of any model
 family in this catalog**, including the hybrid-lag experiments above — with
 a mean std of 5.414 mg/L:
 
-![Gaussian Process predictions with uncertainty bands](../figures/23_gaussian_process.png)
+![Gaussian Process predictions with uncertainty bands](../figures/scenario1_toc_alkalinity/23_gaussian_process.png)
 
 **SARIMAX**, a time-series-native alternative to this catalog's
 lag-as-a-feature approach, is the weakest of the five and an instructive
@@ -443,7 +443,7 @@ mean. Adding an explicit constant term fixes the collapse and lands TOC at
 R²=0.270 and alkalinity at R²=0.108 — positive, but well below the
 lag-feature models used everywhere else in this catalog:
 
-![SARIMAX forecast vs. actual](../figures/24_sarimax.png)
+![SARIMAX forecast vs. actual](../figures/scenario1_toc_alkalinity/24_sarimax.png)
 
 ## Does NOAA have other public data that could help? Yes — ENSO
 
@@ -479,7 +479,7 @@ recovers on its own, not a fully independent one. Full numbers in
 [`results/parameter_summary.md`](../results/parameter_summary.md)'s "NOAA
 ENSO experiment" section.
 
-![NOAA Oceanic Nino Index: does it help?](../figures/30_enso_experiment.png)
+![NOAA Oceanic Nino Index: does it help?](../figures/scenario1_toc_alkalinity/30_enso_experiment.png)
 
 ## What the deck asks for that isn't here
 

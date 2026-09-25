@@ -92,7 +92,7 @@ framings fall out of the same data with no new sources:
    on 2026-05-12 to 05-15) — **caught 4/4 of those exact days**, plus the
    two transition days on either side, out of 16 total flagged across the
    whole 4.5-year record. See
-   [`figures/18_anomaly_detection.png`](figures/18_anomaly_detection.png).
+   [`figures/scenario3_snowpack_system/18_anomaly_detection.png`](figures/scenario3_snowpack_system/18_anomaly_detection.png).
 3. **Hydrologic-regime discovery (unsupervised clustering).** No target at
    all: standardize the engineered predictors, cluster with KMeans, see
    whether the days split into recognizable regimes (baseflow, snowmelt,
@@ -248,10 +248,10 @@ dominates for alkalinity (0.49-0.54 across the regressor and classifier).
 
 **Alkalinity < 60 mg/L classifier**: ROC-AUC = 0.840 (random forest) / 0.844
 (logistic regression) on the held-out split. Full precision/recall tradeoff in
-[`figures/06_alkalinity_classifier_pr_curve.png`](figures/06_alkalinity_classifier_pr_curve.png)
+[`figures/scenario1_toc_alkalinity/06_alkalinity_classifier_pr_curve.png`](figures/scenario1_toc_alkalinity/06_alkalinity_classifier_pr_curve.png)
 rather than the single point `guide.md` reports; the literal ROC curve (true
 vs. false positive rate) behind that AUC number is
-[`figures/25_alkalinity_roc_curve.png`](figures/25_alkalinity_roc_curve.png).
+[`figures/scenario1_toc_alkalinity/25_alkalinity_roc_curve.png`](figures/scenario1_toc_alkalinity/25_alkalinity_roc_curve.png).
 
 **Chemical-dosing alert calendar** (`dosing_alerts.py`/`analyze_dosing.py`):
 answers "when do we know to add the chemical after a spike" directly, rather
@@ -269,7 +269,7 @@ baked into the features, so the date an alert fires is itself the lead time
 > lead time and a TOC alert as **2 days** — the alert date itself already
 > is the lead time.
 
-See [`figures/26_dosing_alert_timeline.png`](figures/26_dosing_alert_timeline.png)
+See [`figures/scenario1_toc_alkalinity/26_dosing_alert_timeline.png`](figures/scenario1_toc_alkalinity/26_dosing_alert_timeline.png)
 and [Scenario 1](challenge_writeups/scenario1_toc_alkalinity.md) for the full
 numbers and the honest caveat on alkalinity's trigger (recall-tuning it this
 aggressively means it fires on 250 of 459 held-out days, more than half).
@@ -285,7 +285,7 @@ TOC 5.44 mg/L and mean flow 844 CFS — well above the other two clusters
 (2.53/2.55 mg/L, 579/322 CFS) — i.e. an unsupervised model, given no target
 at all, separates out the same high-flow/high-TOC days a supervised model is
 built to predict. See
-[`figures/05_hydrologic_regimes.png`](figures/05_hydrologic_regimes.png).
+[`figures/scenario2_storm_runoff/05_hydrologic_regimes.png`](figures/scenario2_storm_runoff/05_hydrologic_regimes.png).
 
 ## Figures
 

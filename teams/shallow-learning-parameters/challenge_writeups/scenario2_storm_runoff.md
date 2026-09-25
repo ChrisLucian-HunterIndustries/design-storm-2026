@@ -36,7 +36,7 @@ season, show the reservoir's thermal structure changing from a nearly
 uniform ~5-10°C column in April to a sharply layered warm-surface /
 cold-bottom column by June-August (a textbook thermocline):
 
-![Depth profiles across the season](../figures/14_depth_profiles.png)
+![Depth profiles across the season](../figures/scenario2_storm_runoff/14_depth_profiles.png)
 
 The April profile's turbidity panel is worth a second look: it spikes to
 over 100 NTU near the bottom (45m) while staying under 5 NTU near the
@@ -49,7 +49,7 @@ chase that specific mechanism further.
 bullet 2, continued). The real 2026-07-18 storm (peak flow and turbidity
 within the sonde's window) has full-depth casts on both sides of it:
 
-![Depth profile before/after the storm](../figures/15_storm_profile_comparison.png)
+![Depth profile before/after the storm](../figures/scenario2_storm_runoff/15_storm_profile_comparison.png)
 
 Turbidity rises at *every* depth after the storm (roughly +0.2 to +1 NTU
 from surface to bottom, most pronounced in the 10-30m range) — the storm's
@@ -84,7 +84,7 @@ which the national daily datasets support directly:
   identifiable from upstream sensor data alone, without ever being told
   which days had a storm.
 
-![Hydrologic-regime clusters from PCA + KMeans](../figures/05_hydrologic_regimes.png)
+![Hydrologic-regime clusters from PCA + KMeans](../figures/scenario2_storm_runoff/05_hydrologic_regimes.png)
 
 ## What the deck asks for that isn't here
 

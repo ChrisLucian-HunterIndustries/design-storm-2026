@@ -32,7 +32,7 @@ that map doesn't cover: a **year-over-year comparison** of Hoosier Pass SWE
 and South Platte flow, both re-indexed to day-of-year so different years
 overlay directly.
 
-![Snowpack and streamflow overlaid by calendar year](../figures/07_snowpack_streamflow_by_year.png)
+![Snowpack and streamflow overlaid by calendar year](../figures/scenario3_snowpack_system/07_snowpack_streamflow_by_year.png)
 
 Computed per year (`parameter_summary.md`):
 
@@ -61,7 +61,7 @@ South Platte streamflow a few days ahead from today's conditions, using
 flow/snowpack/weather as features, flow `lead_days` later as target,
 independent of the TOC/alkalinity question entirely).
 
-![3-day-ahead streamflow forecast, held-out half](../figures/20_flow_forecast.png)
+![3-day-ahead streamflow forecast, held-out half](../figures/scenario3_snowpack_system/20_flow_forecast.png)
 
 | model | held-out R² |
 |---|---:|
@@ -92,7 +92,7 @@ correlates each raw upstream predictor against each target at every lag from
 0 to 10 days and reports where the correlation peaks — an empirical,
 per-predictor transit/mixing time.
 
-![Correlation vs. lag for four predictor/target pairs](../figures/08_lag_correlation_scan.png)
+![Correlation vs. lag for four predictor/target pairs](../figures/scenario3_snowpack_system/08_lag_correlation_scan.png)
 
 | predictor | target | best lag (days) | correlation at best lag |
 |---|---|---:|---:|
@@ -124,7 +124,7 @@ turbidity and flow both spike that day, and the Foothills lab result is
 plotted on its own axis below, with the empirically-fit response date
 marked.
 
-![One real storm traced from the upstream gage to the treatment plant](../figures/09_storm_event_trace.png)
+![One real storm traced from the upstream gage to the treatment plant](../figures/scenario3_snowpack_system/09_storm_event_trace.png)
 
 Reading it left to right: turbidity and flow rise together and peak
 sharply on 2023-05-12. TOC at the plant is still flat for a few more days,
@@ -141,7 +141,7 @@ unified... animation" of a parameter moving through the system: the same
 storm window, animated as a synchronized cursor sweeping day by day across
 the upstream gage (top) and the Foothills lab result (bottom).
 
-![Animated transit trace: a cursor sweeps the same storm window across both panels](../figures/10_transit_animation.gif)
+![Animated transit trace: a cursor sweeps the same storm window across both panels](../figures/scenario3_snowpack_system/10_transit_animation.gif)
 
 This is deliberately *not* an animation of a literal water parcel travelling
 from point A to point B — this data cannot ground that claim (see the
@@ -171,7 +171,7 @@ covers. `sonde_loader.cast_summary` computes surface-minus-bottom
 temperature per cast, a standard stratification indicator: large values
 mean a layered water column, values near zero mean fully mixed.
 
-![Stratification over the season](../figures/13_stratification_timeline.png)
+![Stratification over the season](../figures/scenario3_snowpack_system/13_stratification_timeline.png)
 
 The pattern across this one season: the reservoir starts April relatively
 weakly stratified (~5°C surface-bottom difference), swings to its most
