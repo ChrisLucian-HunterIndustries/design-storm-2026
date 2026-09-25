@@ -332,6 +332,82 @@ Base model: RandomForestRegressor on national features, trained on every record 
 Both columns are far more negative than the earlier restricted-window comparison (which let the sonde window's own first half into training) -- the base model never sees 2026 at all (background = every row *before* 2026-04-07), and 2026 is guide.md's documented drought year (peak SWE 7.9in vs. 2024's 20.9in), so extrapolating forward across that boundary is harder than the earlier tables' in-window split. The residual correction helps TOC a little and makes alkalinity much worse -- with a base model this far off, a 2-feature linear correction just adds its own noise on top rather than fixing a small, well-behaved error. Honest conclusion: this pretrain-then-fine-tune framing does not rescue the limited window either -- see the section above for the actual, still-modest answer (a single-column lag correlation survives this data volume where any of these multi-parameter approaches do not).
 
 
+## Other ideas for the limited 4-month window (shrink parameters, measure stability, change the target, use higher-frequency data)
+
+
+### Shrink parameters instead of adding features (Ridge/Lasso)
+
+| target | rows | random forest R² | SVR R² | Ridge R² | Lasso R² |
+|---|---:|---:|---:|---:|---:|
+| TOC_mg_L | 129 | -0.628 | -0.197 | 0.003 | -0.731 |
+| Alk_mg_L | 133 | 0.121 | -0.486 | -0.497 | -0.202 |
+
+### Is a single 50/50 split's R² on this window stable, or noise? (TimeSeriesSplit cross-validation, Ridge)
+
+| target | folds | mean R² | std R² | min R² | max R² |
+|---|---:|---:|---:|---:|---:|
+| Alk_mg_L | 5 | -5.869 | 6.664 | -16.347 | 0.096 |
+| TOC_mg_L | 5 | -15.308 | 31.107 | -70.903 | -0.054 |
+
+### Predict day-over-day deltas instead of absolute levels
+
+| target | framing | rows | random forest R² | Ridge R² |
+|---|---|---:|---:|---:|
+| TOC_mg_L | level | 129 | -0.628 | 0.003 |
+| TOC_mg_L | day-over-day delta | 128 | -0.126 | -0.211 |
+| Alk_mg_L | level | 133 | 0.121 | -0.497 |
+| Alk_mg_L | day-over-day delta | 132 | -0.046 | -0.082 |
+
+### Two-stage chain: route through the sonde's 390 casts instead of its ~100-130 daily rows
+
+| stage | rows | held-out R² |
+|---|---:|---:|
+| stage 1: casts -> gage turbidity | 382 | 0.067 |
+| stage 2: real gage turbidity -> TOC (direct) | 133 | -0.490 |
+| stage 2: sonde-derived turbidity -> TOC (chain) | 98 | -0.602 |
+
+## MTBS burn-scar experiment: does watershed fire history help? (new dataset, not in data/)
+
+MTBS (Monitoring Trends in Burn Severity, https://apps.fs.usda.gov, USFS) publishes burned-area boundaries back to 1984 -- a public dataset not otherwise used anywhere in this catalog. A real point-in-polygon check (not just a bounding box) against the actual drainage basin above Strontia Springs found these fires genuinely inside it -- only the last one ("403", 2023) falls within this record's own 2022-2026 coverage, but every fire contributes to `days_since_fire`'s "most recent prior fire" reference for earlier dates too:
+
+| fire | ignition date | acres |
+|---|---|---:|
+| LOWER NORTH FORK FIRE | 2012-03-26 | 3432 |
+| SPRINGER | 2012-06-17 | 1665 |
+| HIGH MEADOWS | 2000-06-12 | 9604 |
+| SNAKING | 2002-04-23 | 2080 |
+| SCHOONOVER | 2002-05-22 | 2818 |
+| HAYMAN | 2002-06-08 | 129312 |
+| MVD PSFRXASST 4 | 2001-09-26 | 7368 |
+| BUFFALO CREEK | 1996-05-18 | 11684 |
+| WESTON PASS | 2018-06-28 | 13160 |
+| 403 | 2023-03-30 | 1769 |
+
+days_since_fire (burn_scar_loader.py) is signed and continuous -- negative before the nearest prior fire, zero on ignition day, growing positive after -- so a tree model can split on "how recently burned" at any threshold, and no row ever reflects a fire that hasn't happened yet as of that row's own date.
+
+| target | features | held-out R² |
+|---|---|---:|
+| TOC_mg_L | without burn-scar feature | 0.334 |
+| TOC_mg_L | with burn-scar feature | 0.654 |
+| Alk_mg_L | without burn-scar feature | 0.234 |
+| Alk_mg_L | with burn-scar feature | 0.489 |
+
+### Caveat: is this a genuine fire effect, or a time-index artifact?
+
+The jump above is large enough to be suspicious on its own terms -- large enough to warrant checking before trusting it. Three controls, each a function of the date alone with no fire information, were run against the same baseline:
+
+| target | control feature | held-out R² |
+|---|---|---:|
+| TOC_mg_L | days since record start (no fire semantics) | 0.173 |
+| TOC_mg_L | days since 2023-03-30 only, single segment (no earlier fire history) | 0.306 |
+| TOC_mg_L | binary before/after 2023-03-30 (no fire semantics) | 0.282 |
+| Alk_mg_L | days since record start (no fire semantics) | 0.145 |
+| Alk_mg_L | days since 2023-03-30 only, single segment (no earlier fire history) | 0.267 |
+| Alk_mg_L | binary before/after 2023-03-30 (no fire semantics) | 0.250 |
+
+A plain day-count since the record's start, and the same day-count measured only from the "403" fire's own date (no earlier fire history), both score *below* the no-feature baseline for TOC and only marginally above it for alkalinity -- neither reproduces the jump. Only `days_since_fire`'s actual shape (piecewise-monotonic, reset at each of the ten fires' ignition dates found above) produces the large improvement. Honest reading: this looks like the feature is functioning as an unusually fine-grained "which point in time is this" identifier -- closer to a lookup key than a physically meaningful recency signal -- and the random forest may simply be exploiting short-range temporal autocorrelation in the target across the time-ordered split, not learning anything about fire effects on water quality. **This result is reported here, not hidden, precisely because it is not yet trustworthy** -- treat the R^2 figures in the table above as a flagged, unresolved finding rather than a confirmed new best score, pending a check against a real physical burn-severity covariate (e.g. dNBR, already in the raw MTBS attributes) instead of a date-only feature.
+
+
 ## Storm impact on the reservoir's depth profile (Scenario 2: "how do water quality parameters change and distribute by depth")
 
 Storm date (peak flow and turbidity in the sonde's window): 2026-07-18.
