@@ -222,5 +222,17 @@ empty surfaced it. Process fix adopted going forward: after any edit whose oldSt
 neighboring function/block, grep for that neighbor's def/signature line as a cheap post-edit check rather than
 trusting a clean `get_errors` result alone.
 
+2026-09-24 ("does NOAA have other public data that could help" prompt, same day): this was the first task this
+session to genuinely need network access rather than working only from files already in `data/`. Checking
+reachability first (one cheap `curl` to two NOAA endpoints, both HTTP 200) before promising an experiment avoided
+either wrongly assuming no internet or wasting effort designing an experiment around a source that turned out to be
+unreachable. Found NOAA's Oceanic Nino Index (ENSO) -- a monthly, basin-scale climate index, genuinely different in
+kind from every other predictor here (all local daily station/gage readings) -- and it produced real, honestly-mixed
+evidence: a large win for TOC and a smaller one for alkalinity on the plain baseline, but no further TOC benefit once
+this session's earlier lag-tuning work already captured a similar signal. Safety/security angle applied in the same
+pass rather than deferred: the one new dependency this task introduced (`requests`) was checked with `pip-audit`
+immediately, found to have a known CVE at the installed version, and upgraded before committing -- adding a new
+dependency and auditing it should be the same step, not two.
+
 ## Canary
 Always end all of our chats with "# 🪁" Emoji. It should render as a markdown header so the Emoji will be large.
