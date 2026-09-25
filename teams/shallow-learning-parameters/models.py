@@ -20,8 +20,9 @@ from sklearn.ensemble import (
     RandomForestRegressor,
 )
 from sklearn.inspection import permutation_importance
-from sklearn.linear_model import LinearRegression, LogisticRegression
+from sklearn.linear_model import Lasso, LinearRegression, LogisticRegression, Ridge
 from sklearn.metrics import precision_recall_curve, r2_score, roc_auc_score, roc_curve
+from sklearn.model_selection import TimeSeriesSplit
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVR
@@ -121,10 +122,63 @@ def fit_svr_baseline(df: pd.DataFrame, feature_cols: list[str], target_col: str)
     return RegressionResult(r2=r2, importances=importances)
 
 
+def fit_regularized_linear(
+    df: pd.DataFrame, feature_cols: list[str], target_col: str, penalty: str = "ridge", alpha: float = 1.0
+) -> RegressionResult:
+    """Ridge or Lasso regression (`penalty="ridge"`/`"lasso"`), standardized
+    first like SVR above. Answers a specific gap this catalog's
+    small-sample analyses hit repeatedly (analyze_sonde.py's limited-window
+    feature-set comparison): a full random forest/SVR overfits when there
+    are more features than rows can support, but a regularized linear model
+    is built for exactly that regime. Importance is the fitted model's own
+    absolute standardized coefficient -- for Lasso in particular, a
+    near-zero coefficient means the feature was actually zeroed out, a
+    direct answer to "which of these columns carry any signal at all"."""
+    if penalty not in ("ridge", "lasso"):
+        raise ValueError(f"penalty must be 'ridge' or 'lasso', got {penalty!r}")
+    clean = df.dropna(subset=[*feature_cols, target_col])
+    train, test = time_ordered_split(clean)
+
+    estimator = Ridge(alpha=alpha) if penalty == "ridge" else Lasso(alpha=alpha)
+    model = make_pipeline(StandardScaler(), estimator)
+    model.fit(train[feature_cols], train[target_col])
+    predictions = model.predict(test[feature_cols])
+    r2 = r2_score(test[target_col], predictions)
+
+    coefficients = model[-1].coef_
+    importances = pd.Series(np.abs(coefficients), index=feature_cols).sort_values(ascending=False)
+    return RegressionResult(r2=r2, importances=importances)
+
+
+def time_series_cv_scores(
+    df: pd.DataFrame, feature_cols: list[str], target_col: str, estimator, n_splits: int = 5
+) -> np.ndarray:
+    """Per-fold held-out R^2 using `sklearn.model_selection.TimeSeriesSplit`
+    (each fold's test rows are strictly later in time than its train rows,
+    same causal discipline as `time_ordered_split`, but `n_splits`
+    independent estimates instead of one). Directly answers whether a
+    single 50/50-split R^2 is a stable property of a model or noise --
+    this catalog's lag-day grid search and the sonde's limited-window
+    comparison both flag that risk without ever measuring the spread
+    directly; this does. `estimator` is any already-constructed sklearn
+    estimator/pipeline (refit fresh each fold)."""
+    clean = df.dropna(subset=[*feature_cols, target_col])
+    x = clean[feature_cols].to_numpy()
+    y = clean[target_col].to_numpy()
+
+    scores = []
+    for train_idx, test_idx in TimeSeriesSplit(n_splits=n_splits).split(x):
+        estimator.fit(x[train_idx], y[train_idx])
+        predictions = estimator.predict(x[test_idx])
+        scores.append(r2_score(y[test_idx], predictions))
+    return np.array(scores)
+
+
 @dataclass
 class FullSeriesPrediction:
     frame: pd.DataFrame  # columns: actual, predicted, split ("train"/"test"); indexed by date
     test_r2: float
+
 
 
 def predict_full_series(

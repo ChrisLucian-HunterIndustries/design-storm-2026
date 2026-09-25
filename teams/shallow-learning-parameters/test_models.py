@@ -16,11 +16,13 @@ from models import (
     fit_linear_baseline,
     fit_logistic_baseline,
     fit_random_forest_importance,
+    fit_regularized_linear,
     fit_svr_baseline,
     fit_threshold_classifier,
     lag_correlation_scan,
     predict_full_series,
     time_ordered_split,
+    time_series_cv_scores,
 )
 
 
@@ -66,6 +68,37 @@ def test_svr_baseline_recovers_strong_signal(synthetic_frame: pd.DataFrame) -> N
     result = fit_svr_baseline(synthetic_frame, ["driver", "other"], "target")
     assert result.r2 > 0.8
     assert result.importances["driver"] > result.importances["other"]
+
+
+def test_fit_regularized_linear_ridge_recovers_strong_signal(synthetic_frame: pd.DataFrame) -> None:
+    result = fit_regularized_linear(synthetic_frame, ["driver", "other"], "target", penalty="ridge")
+    assert result.r2 > 0.8
+    assert result.importances["driver"] > result.importances["other"]
+
+
+def test_fit_regularized_linear_lasso_zeroes_out_irrelevant_feature(synthetic_frame: pd.DataFrame) -> None:
+    result = fit_regularized_linear(synthetic_frame, ["driver", "other"], "target", penalty="lasso", alpha=0.5)
+    assert result.importances["other"] == pytest.approx(0.0, abs=1e-8)
+
+
+def test_fit_regularized_linear_rejects_unknown_penalty(synthetic_frame: pd.DataFrame) -> None:
+    with pytest.raises(ValueError):
+        fit_regularized_linear(synthetic_frame, ["driver"], "target", penalty="elasticnet")
+
+
+def test_time_series_cv_scores_recovers_strong_signal_every_fold(synthetic_frame: pd.DataFrame) -> None:
+    from sklearn.linear_model import LinearRegression as _LinearRegression
+
+    scores = time_series_cv_scores(synthetic_frame, ["driver", "other"], "target", _LinearRegression(), n_splits=4)
+    assert len(scores) == 4
+    assert scores.min() > 0.8
+
+
+def test_time_series_cv_scores_returns_one_score_per_split(synthetic_frame: pd.DataFrame) -> None:
+    from sklearn.linear_model import LinearRegression as _LinearRegression
+
+    scores = time_series_cv_scores(synthetic_frame, ["driver"], "target", _LinearRegression(), n_splits=3)
+    assert scores.shape == (3,)
 
 
 def test_predict_full_series_labels_train_and_test(synthetic_frame: pd.DataFrame) -> None:
