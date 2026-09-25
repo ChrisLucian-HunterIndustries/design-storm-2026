@@ -353,69 +353,69 @@ def plot_lag_day_grid_search(data_dir: Path, out_path: Path, lag_days_grid: list
 
 def main() -> None:
     FIGURES_DIR.mkdir(exist_ok=True)
+    s1 = FIGURES_DIR / "scenario1_toc_alkalinity"
+    s2 = FIGURES_DIR / "scenario2_storm_runoff"
+    s3 = FIGURES_DIR / "scenario3_snowpack_system"
+    for scenario_dir in (s1, s2, s3):
+        scenario_dir.mkdir(exist_ok=True)
+
     df_toc = build_dataset(DATA_DIR, lag_days=2)
     df_alk = build_dataset(DATA_DIR, lag_days=4)
     all_features = feature_columns(df_toc)
 
-    plot_targets_timeseries(df_toc, FIGURES_DIR / "01_targets_timeseries.png")
-    plot_correlation_heatmap(df_toc, df_alk, all_features, FIGURES_DIR / "02_correlation_heatmap.png")
-    plot_turb_flow_scatter(df_toc, FIGURES_DIR / "03_turb_flow_vs_toc.png")
-    plot_feature_importance(df_toc, df_alk, FIGURES_DIR / "04_feature_importance.png")
-    plot_regime_clusters(df_toc, all_features, FIGURES_DIR / "05_hydrologic_regimes.png")
-    plot_alkalinity_classifier_curve(df_alk, FIGURES_DIR / "06_alkalinity_classifier_pr_curve.png")
-    plot_snowpack_and_flow_by_year(DATA_DIR, FIGURES_DIR / "07_snowpack_streamflow_by_year.png")
-    plot_lag_correlation_scan(DATA_DIR, FIGURES_DIR / "08_lag_correlation_scan.png")
+    plot_targets_timeseries(df_toc, s1 / "01_targets_timeseries.png")
+    plot_correlation_heatmap(df_toc, df_alk, all_features, s1 / "02_correlation_heatmap.png")
+    plot_turb_flow_scatter(df_toc, s1 / "03_turb_flow_vs_toc.png")
+    plot_feature_importance(df_toc, df_alk, s1 / "04_feature_importance.png")
+    plot_regime_clusters(df_toc, all_features, s2 / "05_hydrologic_regimes.png")
+    plot_alkalinity_classifier_curve(df_alk, s1 / "06_alkalinity_classifier_pr_curve.png")
+    plot_snowpack_and_flow_by_year(DATA_DIR, s3 / "07_snowpack_streamflow_by_year.png")
+    plot_lag_correlation_scan(DATA_DIR, s3 / "08_lag_correlation_scan.png")
 
     event = select_storm_event(DATA_DIR)
-    plot_transit_event_trace(event, FIGURES_DIR / "09_storm_event_trace.png")
-    plot_transit_animation(event, FIGURES_DIR / "10_transit_animation.gif")
+    plot_transit_event_trace(event, s3 / "09_storm_event_trace.png")
+    plot_transit_animation(event, s3 / "10_transit_animation.gif")
 
-    plot_model_family_comparison(df_toc, df_alk, FIGURES_DIR / "11_model_family_comparison.png")
-    plot_lag_day_grid_search(DATA_DIR, FIGURES_DIR / "12_lag_day_grid_search.png")
+    plot_model_family_comparison(df_toc, df_alk, s1 / "11_model_family_comparison.png")
+    plot_lag_day_grid_search(DATA_DIR, s1 / "12_lag_day_grid_search.png")
 
     sonde_readings = load_sonde_readings(DATA_DIR)
     sonde_casts = cast_summary(sonde_readings)
     sonde_daily = daily_surface_features(sonde_readings)
 
-    plot_stratification_timeline(sonde_casts, FIGURES_DIR / "13_stratification_timeline.png")
-    plot_depth_profiles(sonde_readings, sonde_casts, FIGURES_DIR / "14_depth_profiles.png")
+    plot_stratification_timeline(sonde_casts, s3 / "13_stratification_timeline.png")
+    plot_depth_profiles(sonde_readings, sonde_casts, s2 / "14_depth_profiles.png")
 
     sonde_storm_date = peak_loading_date(
         DATA_DIR, sonde_readings["timestamp"].min().normalize(), sonde_readings["timestamp"].max().normalize()
     )
     plot_storm_profile_comparison(
-        sonde_readings, sonde_casts, sonde_storm_date, FIGURES_DIR / "15_storm_profile_comparison.png"
+        sonde_readings, sonde_casts, sonde_storm_date, s2 / "15_storm_profile_comparison.png"
     )
     plot_sonde_vs_gage_comparison(
-        DATA_DIR, sonde_readings, sonde_daily, FIGURES_DIR / "16_sonde_vs_gage_comparison.png"
+        DATA_DIR, sonde_readings, sonde_daily, s1 / "16_sonde_vs_gage_comparison.png"
     )
 
-    plot_classifier_comparison(df_alk, FIGURES_DIR / "17_classifier_comparison.png")
-    plot_anomaly_detection(DATA_DIR, FIGURES_DIR / "18_anomaly_detection.png")
+    plot_classifier_comparison(df_alk, s1 / "17_classifier_comparison.png")
+    plot_anomaly_detection(DATA_DIR, s3 / "18_anomaly_detection.png")
 
-    plot_tuning_comparison(df_toc, TOC_FEATURES, df_alk, ALK_FEATURES, FIGURES_DIR / "19_tuning_comparison.png")
-    plot_flow_forecast(DATA_DIR, FIGURES_DIR / "20_flow_forecast.png")
-    plot_quantile_bands(df_toc, TOC_FEATURES, df_alk, ALK_FEATURES, FIGURES_DIR / "21_quantile_bands.png")
+    plot_tuning_comparison(df_toc, TOC_FEATURES, df_alk, ALK_FEATURES, s1 / "19_tuning_comparison.png")
+    plot_flow_forecast(DATA_DIR, s3 / "20_flow_forecast.png")
+    plot_quantile_bands(df_toc, TOC_FEATURES, df_alk, ALK_FEATURES, s1 / "21_quantile_bands.png")
     plot_multioutput_comparison(
-        df_toc, TOC_FEATURES, ALK_FEATURES, all_features, FIGURES_DIR / "22_multioutput_comparison.png"
+        df_toc, TOC_FEATURES, ALK_FEATURES, all_features, s1 / "22_multioutput_comparison.png"
     )
-    plot_gaussian_process(df_toc, TOC_FEATURES, df_alk, ALK_FEATURES, FIGURES_DIR / "23_gaussian_process.png")
-    plot_sarimax(df_toc, df_alk, FIGURES_DIR / "24_sarimax.png")
-    plot_alkalinity_roc_curve(df_alk, FIGURES_DIR / "25_alkalinity_roc_curve.png")
-    plot_dosing_alert_timeline(df_toc, TOC_FEATURES, df_alk, ALK_FEATURES, FIGURES_DIR / "26_dosing_alert_timeline.png")
+    plot_gaussian_process(df_toc, TOC_FEATURES, df_alk, ALK_FEATURES, s1 / "23_gaussian_process.png")
+    plot_sarimax(df_toc, df_alk, s1 / "24_sarimax.png")
+    plot_alkalinity_roc_curve(df_alk, s1 / "25_alkalinity_roc_curve.png")
+    plot_dosing_alert_timeline(df_toc, TOC_FEATURES, df_alk, ALK_FEATURES, s1 / "26_dosing_alert_timeline.png")
 
-    plot_lag_approach_comparison(
-        TOC_FEATURES, ALK_FEATURES, DATA_DIR, FIGURES_DIR / "27_lag_approach_comparison.png"
-    )
-    plot_precip_extra_lag_grid(
-        TOC_FEATURES, ALK_FEATURES, DATA_DIR, FIGURES_DIR / "28_precip_extra_lag_grid.png"
-    )
-    plot_hybrid_lag_model_family(
-        TOC_FEATURES, ALK_FEATURES, DATA_DIR, FIGURES_DIR / "29_hybrid_lag_model_family.png"
-    )
-    plot_enso_experiment(DATA_DIR, FIGURES_DIR / "30_enso_experiment.png")
+    plot_lag_approach_comparison(TOC_FEATURES, ALK_FEATURES, DATA_DIR, s1 / "27_lag_approach_comparison.png")
+    plot_precip_extra_lag_grid(TOC_FEATURES, ALK_FEATURES, DATA_DIR, s1 / "28_precip_extra_lag_grid.png")
+    plot_hybrid_lag_model_family(TOC_FEATURES, ALK_FEATURES, DATA_DIR, s1 / "29_hybrid_lag_model_family.png")
+    plot_enso_experiment(DATA_DIR, s1 / "30_enso_experiment.png")
 
-    print(f"Wrote 29 figures + 1 animation to {FIGURES_DIR}")
+    print(f"Wrote 29 figures + 1 animation to {FIGURES_DIR} (grouped under scenario1/2/3 subfolders)")
 
 
 if __name__ == "__main__":
