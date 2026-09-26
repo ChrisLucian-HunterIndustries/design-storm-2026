@@ -366,5 +366,30 @@ figure as empty space with no error anywhere in the pipeline -- reinforces that 
 number is even computed" are not the same guarantee as "the figure that presents it is correct," and
 `view_image` earns its place as a mandatory step, not an optional nicety, for any new visualization.
 
+
+2026-09-26 ("any other ideas... then do them all" prompt, two-part follow-up to the Denver
+outflow task): Lean/Continuous-Improvement read -- proposing five ideas first, grounded with
+cheap fact-checks (raw MTBS attributes, existing storage-history.json) before writing any
+code, meant the follow-up "do them all" had zero re-scoping to do; the five ideas from the
+proposal message mapped 1:1 onto the five features implemented. Quality/honesty read: one of
+the five (fire_pressure) reproduced the exact same suspicious sign-flip pattern already
+flagged for days_since_fire in an earlier session (huge TOC gain, alkalinity collapse) --
+recognizing this as *corroborating* evidence for an existing caveat, not a new independent
+finding, matters because two large-but-inconsistent effects from related features should
+raise more suspicion than either alone, not be reported as two separate wins. Systems-thinking
+read: reusing an already-fetched, unrelated dataset (water-system-3d's storage-history.json,
+originally built for the 3D map) for a new purpose (reservoir residence time) avoided a
+redundant network call and is the kind of cross-module reuse worth actively looking for before
+writing a new fetch script. Safety/TDD-process read: a test that encoded a *wrong* physical
+expectation (assumed distance-weighting would dominate over a 23-year recency gap) failed
+against genuinely correct production code -- the right fix was recognizing the test's own
+confound and simplifying the feature definition, not tuning arbitrary constants until a flawed
+test passed. Also caught and fixed: overwriting a test file's full content to add new test
+functions silently dropped three pre-existing tests for functions still used elsewhere,
+undetected until a full test run showed a lower count than expected -- a full-overwrite-only
+editing tool raises the cost of "add a few tests" to "reproduce the whole file correctly,"
+worth remembering as a standing risk of this session's tooling constraint, not a one-time
+slip.
+
 ## Canary
 Always end all of our chats with "# 🪁" Emoji. It should render as a markdown header so the Emoji will be large.
