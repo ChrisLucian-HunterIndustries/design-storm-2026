@@ -11,7 +11,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from analyze_fire_features import _fire_feature_model_table
+from analyze_fire_features import _fire_feature_model_table, build_fire_feature_section
 from burn_scar_loader import filter_fires_in_basin, load_mtbs_fires
 
 TOC_FEATURES = ["Flow_CFS", "Turbidity_Median"]
@@ -155,3 +155,13 @@ def test_fire_feature_model_table_reports_every_idea_and_combined(
     assert "+ all combined" in text
     assert "TOC_mg_L" in text
     assert "Alk_mg_L" in text
+
+
+def test_build_fire_feature_section_includes_caveat_language() -> None:
+    lines = build_fire_feature_section(
+        Path(__file__).resolve().parents[2] / "data",
+        {"TOC_mg_L": ["Flow_CFS"], "Alk_mg_L": ["Specific_Cond_Mean"]},
+        {"TOC_mg_L": 2, "Alk_mg_L": 4},
+    )
+    text = "\n".join(lines)
+    assert "caveat" in text.lower()

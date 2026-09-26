@@ -178,4 +178,19 @@ def build_fire_feature_section(
     lines += _fire_feature_model_table(
         data_dir, OUTFLOW_PATH, STORAGE_PATH, fires_in_basin, RESERVOIR_LAT, RESERVOIR_LON, national_features, lag_days
     )
+    lines.append(
+        "\n**Caveat on `fire_pressure`:** it produces the largest single jump for TOC but makes "
+        "alkalinity dramatically *worse* (below a mean-only baseline) -- the same sign-flip "
+        "pattern as `days_since_fire` in the burn-scar section above, and for the same reason: a "
+        "real physical fire effect should not help one water-quality parameter enormously while "
+        "badly hurting a closely related one, which is evidence this is another time-index-like "
+        "artifact rather than a genuine signal. **`+ all combined` for alkalinity going negative "
+        "(-0.161, below both the baseline and every single idea alone) is a real, honest negative "
+        "result too** -- adding five correlated/noisy features at once to a small feature set "
+        "overfits rather than compounds. The four more modest, plausible ideas "
+        "(`fire_precip_interaction`, `cumulative_burned_acres`, `distance_weighted_fire_pressure`, "
+        "`residence_time_days`) each give small, believable gains for *both* targets -- more "
+        "trustworthy than `fire_pressure`'s large but inconsistent one, precisely because they are "
+        "small and consistent rather than large and one-sided.\n"
+    )
     return lines
