@@ -426,6 +426,30 @@ COND20CO ("DENVER WATER CONDUIT NO 20") and COND26CO ("DW CONDUIT 26", at the da
 `+ Outflow_CFS` alone is a genuine, modest improvement over baseline for both targets -- a real measured release, distinct information from the upstream inflow gage already in the baseline features. The much larger jump from adding `days_since_fire` (and the negligible extra gain from combining it with outflow) carries the same caveat raised in the burn-scar section above: it is flagged as an unresolved, not-yet-trustworthy finding, not a confirmed result -- see that section's time-index-artifact controls before treating the combined-feature R^2 here as real.
 
 
+## Five more ways to combine fire and inflow/outflow data (Scenario 1 follow-up)
+
+Each idea below adds one new feature to the baseline, isolating a different mechanism from the plain `days_since_fire`/`Outflow_CFS` features already tried in the sections above:
+
+| target | features | held-out R² |
+|---|---|---:|
+| TOC_mg_L | baseline | 0.334 |
+| TOC_mg_L | + fire_pressure | 0.681 |
+| TOC_mg_L | + fire_precip_interaction | 0.353 |
+| TOC_mg_L | + cumulative_burned_acres | 0.296 |
+| TOC_mg_L | + distance_weighted_fire_pressure | 0.282 |
+| TOC_mg_L | + residence_time_days | 0.390 |
+| TOC_mg_L | + all combined | 0.670 |
+| Alk_mg_L | baseline | 0.234 |
+| Alk_mg_L | + fire_pressure | -0.199 |
+| Alk_mg_L | + fire_precip_interaction | 0.229 |
+| Alk_mg_L | + cumulative_burned_acres | 0.253 |
+| Alk_mg_L | + distance_weighted_fire_pressure | 0.250 |
+| Alk_mg_L | + residence_time_days | 0.258 |
+| Alk_mg_L | + all combined | -0.161 |
+
+**Caveat on `fire_pressure`:** it produces the largest single jump for TOC but makes alkalinity dramatically *worse* (below a mean-only baseline) -- the same sign-flip pattern as `days_since_fire` in the burn-scar section above, and for the same reason: a real physical fire effect should not help one water-quality parameter enormously while badly hurting a closely related one, which is evidence this is another time-index-like artifact rather than a genuine signal. **`+ all combined` for alkalinity going negative (-0.161, below both the baseline and every single idea alone) is a real, honest negative result too** -- adding five correlated/noisy features at once to a small feature set overfits rather than compounds. The four more modest, plausible ideas (`fire_precip_interaction`, `cumulative_burned_acres`, `distance_weighted_fire_pressure`, `residence_time_days`) each give small, believable gains for *both* targets -- more trustworthy than `fire_pressure`'s large but inconsistent one, precisely because they are small and consistent rather than large and one-sided.
+
+
 ## NWS live-forecast demonstration: is a storm forecast right now? (new dataset, not in data/, not backtestable)
 
 The National Weather Service's gridpoint forecast API (https://api.weather.gov, Strontia Springs Reservoir centroid) is a public dataset not otherwise used in this catalog. **It cannot be tested the way every other public dataset in this catalog was** -- NWS has no historical forecast archive, so there is no way to ask "how well would this have predicted 2023's storms"; it can only ever be demonstrated on the current moment (fetch_nws_forecast.py, snapshot saved to nws_forecast_snapshot.json), the same live-conditions framing dosing_alerts.score_current_conditions already uses for the same reason (this repo's data ends on a fixed date with no "sensor exists, lab result doesn't yet" row to genuinely backtest against).
