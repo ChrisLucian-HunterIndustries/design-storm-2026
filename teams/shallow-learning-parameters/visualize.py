@@ -48,6 +48,7 @@ from visualize_experiments import (
     plot_lag_approach_comparison,
     plot_precip_extra_lag_grid,
 )
+from visualize_fire_features import plot_fire_feature_ideas
 from visualize_nws_forecast import plot_nws_forecast_precip
 from visualize_snowmelt import plot_melt_out_regression
 from visualize_robustness import (
@@ -450,8 +451,9 @@ def main() -> None:
     plot_denver_outflow_comparison(
         DATA_DIR, national_features, lag_days_map, s1 / "39_denver_outflow_fire.png"
     )
+    plot_fire_feature_ideas(DATA_DIR, national_features, lag_days_map, s1 / "40_fire_feature_ideas.png")
 
-    print(f"Wrote 38 figures + 1 animation to {FIGURES_DIR} (grouped under scenario1/2/3 subfolders)")
+    print(f"Wrote 39 figures + 1 animation to {FIGURES_DIR} (grouped under scenario1/2/3 subfolders)")
 
 
 if __name__ == "__main__":

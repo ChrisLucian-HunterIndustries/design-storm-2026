@@ -41,7 +41,7 @@ from denver_storage_loader import load_reservoir_storage
 from models import fit_random_forest_importance
 
 OUTFLOW_PATH = Path(__file__).resolve().parent / "denver_conduit_outflow.json"
-STORAGE_PATH = Path(__file__).resolve().parents[1] / "water-system-3d" / "storage-history.json"
+STORAGE_PATH = Path(__file__).resolve().parents[2] / "water-system-3d" / "storage-history.json"
 # Strontia Springs Reservoir's own coordinates (from the DWR CDSS station metadata for STRRESCO).
 RESERVOIR_LAT = 39.432175
 RESERVOIR_LON = -105.12757

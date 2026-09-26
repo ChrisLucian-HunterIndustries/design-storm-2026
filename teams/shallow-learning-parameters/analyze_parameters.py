@@ -19,6 +19,7 @@ from analyze_denver_outflow import build_denver_outflow_section
 from analyze_dosing import build_dosing_alert_section
 from analyze_drought import build_drought_experiment_section
 from analyze_enso import build_enso_experiment_section
+from analyze_fire_features import build_fire_feature_section
 from analyze_lag_experiments import build_lag_experiments_section
 from analyze_snowmelt import build_melt_out_section
 from analyze_nws_forecast import build_nws_forecast_section
@@ -397,6 +398,12 @@ def main() -> None:
     )
 
     lines += build_denver_outflow_section(
+        DATA_DIR,
+        {"TOC_mg_L": TOC_FEATURES, "Alk_mg_L": ALK_FEATURES},
+        {"TOC_mg_L": 2, "Alk_mg_L": 4},
+    )
+
+    lines += build_fire_feature_section(
         DATA_DIR,
         {"TOC_mg_L": TOC_FEATURES, "Alk_mg_L": ALK_FEATURES},
         {"TOC_mg_L": 2, "Alk_mg_L": 4},
