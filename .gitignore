@@ -8,6 +8,7 @@ __pycache__/
 
 # Browser-automation tool output (screenshots taken while checking viewer.html).
 .playwright-mcp/
+.vscode/
 
 # Private working material. Kept locally and in git history, not on the public tip.
 experiments/
