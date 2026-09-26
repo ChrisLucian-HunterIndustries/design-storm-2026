@@ -665,6 +665,60 @@ outflow, carry the same caveat as the burn-scar section above: flagged as an
 unresolved, not-yet-trustworthy finding (likely a time-index artifact, not a
 genuine fire effect), not a confirmed result.
 
+## Five more ways to combine fire and inflow/outflow data
+
+A direct follow-up to the section above, asked as "any other ideas for including the fire
+data and the inflow/outflow data to improve the models further?" Five distinct mechanisms,
+each isolating one new feature added to the baseline (see
+[`analyze_fire_features.py`](../analyze_fire_features.py)):
+
+![Five more fire/inflow/outflow ideas](../figures/scenario1_toc_alkalinity/40_fire_feature_ideas.png)
+
+| target | features | held-out R² |
+|---|---|---:|
+| TOC_mg_L | baseline | 0.334 |
+| TOC_mg_L | + fire_pressure | 0.681 |
+| TOC_mg_L | + fire_precip_interaction | 0.353 |
+| TOC_mg_L | + cumulative_burned_acres | 0.296 |
+| TOC_mg_L | + distance_weighted_fire_pressure | 0.282 |
+| TOC_mg_L | + residence_time_days | 0.390 |
+| TOC_mg_L | + all combined | 0.670 |
+| Alk_mg_L | baseline | 0.234 |
+| Alk_mg_L | + fire_pressure | -0.199 |
+| Alk_mg_L | + fire_precip_interaction | 0.229 |
+| Alk_mg_L | + cumulative_burned_acres | 0.253 |
+| Alk_mg_L | + distance_weighted_fire_pressure | 0.250 |
+| Alk_mg_L | + residence_time_days | 0.258 |
+| Alk_mg_L | + all combined | -0.161 |
+
+- **`fire_pressure`** (size-weighted, time-decayed recency: acres / (1 + days since
+  ignition), summed over every fire already burned) gives the single largest TOC jump --
+  but makes alkalinity dramatically *worse*, well below a mean-only baseline. That sign-flip
+  is the same pattern `days_since_fire` showed in the burn-scar section above, and for the
+  same reason: a real physical fire effect should not help one water-quality parameter this
+  much while badly hurting a closely related one. Treated here as further evidence of a
+  time-index-like artifact, not a confirmed result.
+- **`fire_precip_interaction`** (active days-since-fire × 7-day rolling precipitation, the
+  physically real mechanism: burned soil loses infiltration capacity, so it mobilizes
+  sediment *during* storms, not gradually over elapsed time), **`cumulative_burned_acres`**
+  (10-year trailing window sum of burned acreage, can decrease as old fires age out --
+  unlike a pure running total), and **`distance_weighted_fire_pressure`** (acres / (1 +
+  distance to the reservoir), isolating size/proximity without a recency term) all give
+  small, believable gains for *both* targets -- more trustworthy than `fire_pressure`'s
+  large but one-sided jump, precisely because they are modest and consistent.
+- **`residence_time_days`** (reservoir storage ÷ outflow, in days -- how long water entering
+  today would take to fully turn over at today's release rate, reusing
+  `water-system-3d/storage-history.json`'s already-fetched STRRESCO storage rather than a
+  new network call) is a genuinely different mechanism from either inflow or outflow alone:
+  shorter residence time means less settling time for storm-driven turbidity/TOC to drop
+  out before reaching the plant. It gives the second-largest real (non-suspicious) gain for
+  both targets.
+- **Combining all five at once makes alkalinity worse, not better** (-0.161, below the
+  baseline and below every single idea alone) -- a real, honest negative result: five
+  correlated/noisy features added at once to a small feature set overfits rather than
+  compounds, the same lesson the sonde's limited-window feature-set comparison found
+  earlier in this document.
+
 ## What the deck asks for that isn't here
 
 Nothing, as it turns out — every bullet in this scenario now has at least
